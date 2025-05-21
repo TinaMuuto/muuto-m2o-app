@@ -70,26 +70,31 @@ for prod in product_labels:
             base_colors = [c for c in base_colors if c != "N/A"]
             if len(base_colors) > 1:
                 with cols[idx+1]:
-                    selected = st.selectbox(
-                        f"{prod[:12]}-{tex_row['Upholstery Color']}",
-                        options=[""] + list(base_colors),
-                        key=f"{prod}_{tex_row['Upholstery Color']}"
-                    )
-                    if selected:
-                        matched = match_rows[match_rows["Base Color"] == selected]
-                        if not matched.empty:
-                            item_no = matched["Item No"].values[0]
-                            article_no = matched["Article No"].values[0]
-                            new_selection = {"Item No": item_no, "Article No": article_no}
-                            if new_selection not in st.session_state.selections:
-                                st.session_state.selections.append(new_selection)
+                    matched = match_rows[match_rows["Base Color"] == base_colors[0]]
+                    if not matched.empty:
+                        item_no = matched["Item No"].values[0]
+                        selectbox_key = f"{prod}_{tex_row['Upholstery Color']}_{item_no}"
+                        selected = st.selectbox(
+                            f"{prod[:12]}-{tex_row['Upholstery Color']}",
+                            options=[""] + list(base_colors),
+                            key=selectbox_key
+                        )
+                        if selected:
+                            matched = match_rows[match_rows["Base Color"] == selected]
+                            if not matched.empty:
+                                item_no = matched["Item No"].values[0]
+                                article_no = matched["Article No"].values[0]
+                                new_selection = {"Item No": item_no, "Article No": article_no}
+                                if new_selection not in st.session_state.selections:
+                                    st.session_state.selections.append(new_selection)
             elif len(base_colors) == 1:
                 matched = match_rows[match_rows["Base Color"] == base_colors[0]]
                 if not matched.empty:
                     item_no = matched["Item No"].values[0]
                     article_no = matched["Article No"].values[0]
+                    checkbox_key = f"{prod}_{tex_row['Upholstery Color']}_{item_no}"
                     with cols[idx+1]:
-                        if st.checkbox(f"{base_colors[0]}", key=f"{prod}_{tex_row['Upholstery Color']}"):
+                        if st.checkbox(f"{base_colors[0]}", key=checkbox_key):
                             new_selection = {"Item No": item_no, "Article No": article_no}
                             if new_selection not in st.session_state.selections:
                                 st.session_state.selections.append(new_selection)
