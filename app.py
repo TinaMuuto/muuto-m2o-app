@@ -17,6 +17,9 @@ raw_data, wholesale_prices, retail_prices, output_template = load_data()
 if "color_selections" not in st.session_state:
     st.session_state.color_selections = []
 
+if "final_selections" not in st.session_state:
+    st.session_state.final_selections = []
+
 st.title("Muuto Configurator Matrix Tool")
 st.markdown("""
 This tool allows you to choose one product family at a time and select specific textile-color combinations via a matrix view. Swatches are shown. Base color selection will follow for products with multiple base options.
@@ -46,13 +49,11 @@ textiles["Textile+Color"] = textiles["Upholstery Type"] + " - " + textiles["Upho
 # Step 2: Show matrix with swatches
 st.subheader("Step 2: Select color combinations")
 
-# Matrix header
 cols = st.columns([2] + [1 for _ in range(len(textiles))])
 cols[0].markdown("**Product**")
 for idx, (_, row) in enumerate(textiles.iterrows()):
     cols[idx+1].image(row["Image URL swatch"], width=40, caption=row["Upholstery Color"])
 
-# Matrix rows
 product_labels = family_data["Product Label"].unique()
 for prod in product_labels:
     row_data = family_data[family_data["Product Label"] == prod]
@@ -77,13 +78,16 @@ for prod in product_labels:
                     if entry not in st.session_state.color_selections:
                         st.session_state.color_selections.append(entry)
 
-# Show summary and prepare for base selection
+# Clear all selections
+if st.button("Clear all selections"):
+    st.session_state.color_selections = []
+    st.session_state.final_selections = []
+    st.experimental_rerun()
+
+# Step 3: Base color selection
 if st.session_state.color_selections:
     st.subheader("Step 3: Choose base colors if applicable")
     st.markdown("You can choose multiple base colors for each product+color combination.")
-
-    if "final_selections" not in st.session_state:
-        st.session_state.final_selections = []
 
     for i, sel in enumerate(st.session_state.color_selections):
         st.markdown(f"**{sel['Product Label']} – {sel['Upholstery Color']}**")
@@ -97,42 +101,47 @@ if st.session_state.color_selections:
             item_match = match_rows[match_rows["Base Color"] == base]
             if not item_match.empty:
                 item_no = item_match["Item No"].values[0]
+                article_no = item_match["Article No"].values[0]
                 checkbox_key = f"base_{i}_{item_no}"
                 if st.checkbox(f"{base}", key=checkbox_key):
-                    final = {"Item No": item_no, "Article No": item_match["Article No"].values[0]}
+                    final = {"Item No": item_no, "Article No": article_no}
                     if final not in st.session_state.final_selections:
                         st.session_state.final_selections.append(final)
 
-    # Currency selection and download
-    if st.session_state.final_selections:
-        currencies = [c for c in wholesale_prices.columns if c != "Article No."]
-        selected_currency = st.selectbox("Step 4: Choose your currency", currencies)
+# Step 4: Show final list and download
+if st.session_state.final_selections:
+    st.subheader("Selected combinations")
+    for sel in st.session_state.final_selections:
+        st.markdown(f"- **{sel['Item No']}** (Article No: {sel['Article No']})")
 
-        if st.button("Download masterdata file"):
-            export_rows = []
-            for sel in st.session_state.final_selections:
-                item_no = sel["Item No"]
-                article_no = sel["Article No"]
-                ws_price = wholesale_prices.loc[wholesale_prices["Article No."] == article_no, selected_currency].values
-                rt_price = retail_prices.loc[retail_prices["Article No."] == article_no, selected_currency].values
-                matched_row = raw_data[raw_data["Item No"] == item_no].copy()
-                if not matched_row.empty:
-                    output_row = output_template.copy()
-                    for col in output_template.columns:
-                        if col in matched_row.columns:
-                            output_row.loc[0, col] = matched_row.iloc[0][col]
-                    output_row.loc[0, "Wholesale price"] = ws_price[0] if len(ws_price) else ""
-                    output_row.loc[0, "Retail Price"] = rt_price[0] if len(rt_price) else ""
-                    export_rows.append(output_row)
+    currencies = [c for c in wholesale_prices.columns if c != "Article No."]
+    selected_currency = st.selectbox("Step 4: Choose your currency", currencies)
 
-            final_export = pd.concat(export_rows, ignore_index=True)
-            output = BytesIO()
-            final_export.to_excel(output, index=False, engine='openpyxl')
-            output.seek(0)
+    if st.button("Download masterdata file"):
+        export_rows = []
+        for sel in st.session_state.final_selections:
+            item_no = sel["Item No"]
+            article_no = sel["Article No"]
+            ws_price = wholesale_prices.loc[wholesale_prices["Article No."] == article_no, selected_currency].values
+            rt_price = retail_prices.loc[retail_prices["Article No."] == article_no, selected_currency].values
+            matched_row = raw_data[raw_data["Item No"] == item_no].copy()
+            if not matched_row.empty:
+                output_row = output_template.copy()
+                for col in output_template.columns:
+                    if col in matched_row.columns:
+                        output_row.loc[0, col] = matched_row.iloc[0][col]
+                output_row.loc[0, "Wholesale price"] = ws_price[0] if len(ws_price) else ""
+                output_row.loc[0, "Retail Price"] = rt_price[0] if len(rt_price) else ""
+                export_rows.append(output_row)
 
-            st.download_button(
-                label="📥 Download masterdata file",
-                data=output,
-                file_name=f"Muuto_matrix_output_{selected_currency}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+        final_export = pd.concat(export_rows, ignore_index=True)
+        output = BytesIO()
+        final_export.to_excel(output, index=False, engine='openpyxl')
+        output.seek(0)
+
+        st.download_button(
+            label="📥 Download masterdata file",
+            data=output,
+            file_name=f"Muuto_matrix_output_{selected_currency}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
