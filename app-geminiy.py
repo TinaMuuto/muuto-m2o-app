@@ -169,6 +169,17 @@ if files_loaded_successfully and \
                     if product_items_df.empty:
                         st.write("No unique item configurations found for this product.")
                         continue
+                    
+                    # Optional: Add a header for the "matrix" inside the expander
+                    # header_cols = st.columns([0.6, 1.5, 1.2, 1.2, 1.5, 1])
+                    # with header_cols[0]: st.caption("Swatch")
+                    # with header_cols[1]: st.caption("Textile")
+                    # with header_cols[2]: st.caption("Color")
+                    # with header_cols[3]: st.caption("Base")
+                    # with header_cols[4]: st.caption("Item/Article")
+                    # with header_cols[5]: st.caption("Action")
+                    # st.markdown("---")
+
 
                     for idx, item_row in product_items_df.iterrows():
                         item_no = item_row['Item No']
@@ -178,54 +189,56 @@ if files_loaded_successfully and \
                         base_color_val = str(item_row.get('Base Color', "N/A")) if pd.notna(item_row.get('Base Color')) else "N/A"
                         swatch_url = item_row.get('Image URL swatch')
 
-                        # Construct description for display and for the selected_combinations list
-                        desc_parts = [
+                        # Construct description for display and for the selected_combinations list (remains the same)
+                        desc_parts_full = [
                             selected_family,
                             product_name_iter,
                             uph_type,
                             uph_color
                         ]
-                        # Only add "Base: color" if base_color_val is not "N/A"
                         if base_color_val.upper() != "N/A":
-                            desc_parts.append(f"Base: {base_color_val}")
-                        # else: # If N/A, it's implicitly handled by not adding it, or could add "Base: N/A"
-                        #    desc_parts.append("Base: N/A") # Uncomment if explicit "Base: N/A" is desired in description
+                            desc_parts_full.append(f"Base: {base_color_val}")
+                        full_description_for_list = " / ".join(map(str, desc_parts_full))
 
-                        full_description = " / ".join(map(str, desc_parts))
-
-                        # Layout for each item: Swatch | Details & Add Button
-                        item_cols = st.columns([1, 3, 1.5]) # Swatch, Info, Button
+                        # Layout for each item configuration row
+                        # Ratios: Swatch | Textile Type | Textile Color | Base Color | Item/Article | Button
+                        item_detail_cols = st.columns([0.6, 1.5, 1.2, 1.2, 1.5, 1]) 
                         
-                        with item_cols[0]:
+                        with item_detail_cols[0]: # Swatch
                             if pd.notna(swatch_url) and isinstance(swatch_url, str) and swatch_url.strip() != "":
-                                st.image(swatch_url, width=60, caption=uph_color if len(uph_color) < 15 else "") # Short caption
+                                st.image(swatch_url, width=50, caption="") # Smaller swatch, no caption here
                             else:
-                                st.markdown(f"<div style='width:60px; height:60px; border:1px solid #ddd; display:flex; align-items:center; justify-content:center; font-size:0.8em; text-align:center;'>No Swatch</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div style='width:50px; height:50px; border:1px solid #ddd; display:flex; align-items:center; justify-content:center; font-size:0.7em; text-align:center;'>No Swatch</div>", unsafe_allow_html=True)
                         
-                        with item_cols[1]:
-                            st.markdown(f"""
-                                **Textile:** {uph_type} - **Color:** {uph_color}<br>
-                                **Base Color:** {base_color_val}<br>
-                                <small><i>Item No: {item_no} / Article: {article_no}</i></small>
-                            """, unsafe_allow_html=True)
+                        with item_detail_cols[1]: # Textile Type
+                            st.markdown(f"{uph_type}")
                         
-                        with item_cols[2]:
+                        with item_detail_cols[2]: # Textile Color
+                            st.markdown(f"{uph_color}")
+
+                        with item_detail_cols[3]: # Base Color
+                            st.markdown(f"{base_color_val}")
+                        
+                        with item_detail_cols[4]: # Item No / Article No
+                            st.markdown(f"<small><i>{item_no}<br>{article_no}</i></small>", unsafe_allow_html=True)
+                        
+                        with item_detail_cols[5]: # Add Button
                             is_selected = any(sel_combo['item_no'] == item_no for sel_combo in st.session_state.selected_combinations)
-                            button_label = "Added ✔️" if is_selected else "Add to List"
+                            button_label = "Added ✔️" if is_selected else "Add" # Shorter label
                             
-                            if st.button(button_label, key=f"add_{item_no}", disabled=is_selected):
+                            if st.button(button_label, key=f"add_{item_no}_{product_name_iter}", disabled=is_selected): # Ensure unique key
                                 add_to_selected_combinations(
-                                    full_description, 
+                                    full_description_for_list, 
                                     item_no, 
                                     article_no,
                                     selected_family,
                                     product_name_iter,
                                     uph_type,
                                     uph_color,
-                                    base_color_val # Pass the actual base color value (could be "N/A")
+                                    base_color_val 
                                 )
-                                st.rerun() # To update button state and selected list
-                        st.markdown("---") # Visual separator between items within an expander
+                                st.rerun() 
+                        st.markdown("---") # Visual separator between item configuration rows
 
     # --- Display Current Selections ---
     if st.session_state.selected_combinations:
@@ -340,27 +353,40 @@ st.markdown("""
     }
     div[data-testid="stImage"] img {
         object-fit: contain;
-        max-height: 60px; /* Adjusted swatch size */
+        max-height: 50px; /* Adjusted swatch size */
         border: 1px solid #eee;
         border-radius: 4px;
         padding: 2px;
         margin: auto;
         display: block;
     }
-    div[data-testid="stImage"] figcaption {
+    div[data-testid="stImage"] figcaption { /* Less relevant now as caption is removed from swatch */
         text-align: center;
         font-size: 0.8em;
         padding-top: 2px;
     }
     .stButton>button {
         width: auto;
-        padding: 0.3em 0.6em; /* Smaller padding for buttons */
-        font-size: 0.9em; /* Smaller font for buttons */
+        padding: 0.25em 0.5em; /* Smaller padding for buttons */
+        font-size: 0.85em; /* Smaller font for buttons */
+        margin-top: 5px; /* Align button a bit better with text */
     }
     hr { /* Style for the st.markdown("---") separator */
         margin-top: 0.5rem;
         margin-bottom: 0.5rem;
         border-top: 1px solid #ddd;
     }
+    /* Ensure columns with markdown text are vertically centered with swatch/button */
+    div[data-testid="stVerticalBlock"] div[data-testid="stMarkdownContainer"] {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        height: 100%; /* Fill height of column cell */
+    }
+    /* Minor adjustment for small text in item/article column */
+     div[data-testid="stVerticalBlock"] div[data-testid="stMarkdownContainer"] small {
+        line-height: 1.2;
+     }
+
 </style>
 """, unsafe_allow_html=True)
