@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-# Load Excel files
+# Load data
 @st.cache_data
 def load_data():
     raw = pd.read_excel("raw-data.xlsx", sheet_name="APP")
@@ -13,95 +13,125 @@ def load_data():
 
 raw_data, wholesale_prices, retail_prices, output_template = load_data()
 
-# Initialize session state to store selections
+# Session state for selections
 if "selections" not in st.session_state:
     st.session_state.selections = []
 
-st.title("Muuto Configurator Tool")
+st.title("Muuto Configurator Matrix Tool")
 st.markdown("""
-Welcome to the Muuto configurator.
-
-This tool helps you:
-1. Select multiple product and textile combinations
-2. Choose a currency
-3. Download a complete masterdata file with prices.
-
-Let’s begin!
+This tool allows you to choose one product family at a time and select specific textile-color combinations via a matrix view. Base color options are shown where applicable.
 """)
 
-# Step 1: Product family
-product_families = sorted(raw_data['Product Family'].dropna().unique())
-selected_family = st.selectbox("Step 1: Choose a product family", product_families)
+# Step 1: Select a product family
+families = sorted(raw_data['Product Family'].dropna().unique())
+selected_family = st.selectbox("Step 1: Choose a product family", families)
 
-# Step 2: Product in family
-filtered_family = raw_data[raw_data['Product Family'] == selected_family]
-valid_products = filtered_family[filtered_family['Product Type'].notna() & (filtered_family['Product Type'] != "N/A")].copy()
+# Filter for selected family
+family_data = raw_data[raw_data['Product Family'] == selected_family].copy()
+family_data = family_data[family_data['Product Type'].notna() & (family_data['Product Type'] != "N/A")]
 
-def build_product_label(row):
+# Create readable product labels
+def product_label(row):
     label = f"{row['Product Type']} {row['Product Model']}".strip()
     if row['Product Type'] == "Sofa Chaise Longue" and pd.notna(row['Sofa Direction']):
         label += f" - {row['Sofa Direction']}"
     return label
 
-valid_products["Display Name"] = valid_products.apply(build_product_label, axis=1)
-product_options = sorted(valid_products["Display Name"].unique())
-selected_product_label = st.selectbox("Step 2: Choose a specific product", product_options)
+family_data["Product Label"] = family_data.apply(product_label, axis=1)
 
-# Step 3: Upholstery type
-product_row = valid_products[valid_products["Display Name"] == selected_product_label]
-upholstery_families = product_row["Upholstery Type"].dropna().unique()
-selected_upholstery = st.selectbox("Step 3: Choose a textile family", upholstery_families)
+# Identify textile-family/color combinations
+textiles = family_data[["Upholstery Type", "Upholstery Color", "Image URL swatch"]].dropna().drop_duplicates()
+textiles["Textile+Color"] = textiles["Upholstery Type"] + " - " + textiles["Upholstery Color"]
 
-# Step 4: Upholstery color
-color_rows = product_row[product_row["Upholstery Type"] == selected_upholstery]
-color_options = color_rows["Upholstery Color"].dropna().unique()
-selected_color = st.selectbox("Step 4: Choose a color", color_options)
+# Step 2: Show matrix of product x textile/color
+st.subheader("Step 2: Select combinations")
 
-# Step 5: Base color if applicable
-base_color_rows = color_rows[color_rows["Upholstery Color"] == selected_color]
-base_colors = base_color_rows["Base Color"].dropna().unique()
-selected_base = None
-if len(base_colors) > 1:
-    selected_base = st.selectbox("Step 5: Choose a base color", base_colors)
-elif len(base_colors) == 1:
-    selected_base = base_colors[0]
+selected_items = []
 
-# Step 6: Confirm and show selected Item No
-filtered_final = base_color_rows[base_color_rows["Base Color"] == selected_base] if selected_base else base_color_rows
-item_numbers = filtered_final["Item No"].dropna().unique()
-selected_item_no = item_numbers[0] if len(item_numbers) == 1 else st.selectbox("Confirm Item No", item_numbers)
+# Matrix header with swatches
+cols = st.columns([2] + [1 for _ in range(len(textiles))])
+cols[0].markdown("**Product**")
+for idx, (_, row) in enumerate(textiles.iterrows()):
+    cols[idx+1].image(row["Image URL swatch"], width=40, caption=row["Upholstery Color"])
 
-# Add to selection list
-if st.button("Add to selection"):
-    article_no = filtered_final[filtered_final["Item No"] == selected_item_no]["Article No"].values[0]
-    selection = {
-        "Item No": selected_item_no,
-        "Article No": article_no
-    }
-    if selection not in st.session_state.selections:
-        st.session_state.selections.append(selection)
-        st.success(f"Added {selected_item_no} to selection list.")
-    else:
-        st.warning("This combination is already added.")
+# Matrix rows
+product_labels = family_data["Product Label"].unique()
+for prod in product_labels:
+    row_data = family_data[family_data["Product Label"] == prod]
+    cols = st.columns([2] + [1 for _ in range(len(textiles))])
+    cols[0].markdown(f"**{prod}**")
 
-# Show selection list
+    for idx, (_, tex_row) in enumerate(textiles.iterrows()):
+        match_rows = row_data[
+            (row_data["Upholstery Type"] == tex_row["Upholstery Type"]) &
+            (row_data["Upholstery Color"] == tex_row["Upholstery Color"])
+        ]
+
+        if not match_rows.empty:
+            base_colors = match_rows["Base Color"].dropna().unique()
+            base_colors = [c for c in base_colors if c != "N/A"]
+            base_label = f"{prod} / {tex_row['Upholstery Type']} / {tex_row['Upholstery Color']}"
+            if len(base_colors) > 1:
+                with cols[idx+1]:
+                    selected = st.selectbox(
+                        f"{prod[:12]}-{tex_row['Upholstery Color']}",
+                        options=[""] + list(base_colors),
+                        key=f"{prod}_{tex_row['Upholstery Color']}"
+                    )
+                    if selected:
+                        matched = match_rows[match_rows["Base Color"] == selected]
+                        if not matched.empty:
+                            item_no = matched["Item No"].values[0]
+                            article_no = matched["Article No"].values[0]
+                           new_selection = {
+    "Item No": item_no,
+    "Article No": article_no
+}
+if new_selection not in st.session_state.selections:
+    st.session_state.selections.append(new_selection)
+            elif len(base_colors) == 1:
+                matched = match_rows[match_rows["Base Color"] == base_colors[0]]
+                if not matched.empty:
+                    item_no = matched["Item No"].values[0]
+                    article_no = matched["Article No"].values[0]
+                    if st.checkbox(f"{base_colors[0]}", key=f"{prod}_{tex_row['Upholstery Color']}"):
+                        st.session_state.selections.append({
+                            "Item No": item_no,
+                            "Article No": article_no
+                        })
+
+# --- Show selection summary and export ---
+
 if st.session_state.selections:
     st.subheader("Selected combinations")
-    for idx, sel in enumerate(st.session_state.selections):
+
+   # Vis og fjern valgte kombinationer
+for idx, sel in enumerate(st.session_state.selections):
+    col1, col2 = st.columns([6, 1])
+    with col1:
         st.markdown(f"- **{sel['Item No']}** (Article No: {sel['Article No']})")
+    with col2:
+        if st.button("❌", key=f"remove_{idx}"):
+            st.session_state.selections.pop(idx)
+            st.experimental_rerun()
+    # Step 3: Choose currency
+    currencies = [c for c in wholesale_prices.columns if c != "Article No."]
+    selected_currency = st.selectbox("Step 3: Choose your currency", currencies)
 
-    # Step 7: Choose currency once for all
-    available_currencies = [col for col in wholesale_prices.columns if col != "Article No."]
-    selected_currency = st.selectbox("Step 6: Choose your currency", available_currencies)
-
-    # Step 8: Generate masterdata file for all selections
-    if st.button("Generate masterdata file for all"):
+    # Step 4: Download masterdata file
+    if st.button("Download masterdata file with all selections"):
         export_rows = []
         for sel in st.session_state.selections:
             item_no = sel["Item No"]
             article_no = sel["Article No"]
-            ws_price = wholesale_prices.loc[wholesale_prices["Article No."] == article_no, selected_currency].values
-            rt_price = retail_prices.loc[retail_prices["Article No."] == article_no, selected_currency].values
+
+            ws_price = wholesale_prices.loc[
+                wholesale_prices["Article No."] == article_no, selected_currency
+            ].values
+            rt_price = retail_prices.loc[
+                retail_prices["Article No."] == article_no, selected_currency
+            ].values
+
             matched_row = raw_data[raw_data["Item No"] == item_no].copy()
             if not matched_row.empty:
                 output_row = output_template.copy()
@@ -112,15 +142,16 @@ if st.session_state.selections:
                 output_row.loc[0, "Retail Price"] = rt_price[0] if len(rt_price) else ""
                 export_rows.append(output_row)
 
-        # Concatenate all selections
+        # Concatenate and export
         final_export = pd.concat(export_rows, ignore_index=True)
         output = BytesIO()
         final_export.to_excel(output, index=False, engine='openpyxl')
         output.seek(0)
 
         st.download_button(
-            label="📥 Download masterdata file with all selections",
+            label="📥 Download masterdata file",
             data=output,
-            file_name=f"Muuto_masterdata_{selected_currency}.xlsx",
+            file_name=f"Muuto_matrix_output_{selected_currency}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
