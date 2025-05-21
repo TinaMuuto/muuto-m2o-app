@@ -224,7 +224,7 @@ if files_loaded_successfully and \
                                     uph_color,
                                     base_color_val # Pass the actual base color value (could be "N/A")
                                 )
-                                st.experimental_rerun() # To update button state and selected list
+                                st.rerun() # To update button state and selected list
                         st.markdown("---") # Visual separator between items within an expander
 
     # --- Display Current Selections ---
@@ -235,7 +235,7 @@ if files_loaded_successfully and \
             col1.write(f"{i+1}. {combo['description']} (Item: {combo['item_no']})")
             if col2.button(f"Remove", key=f"remove_{i}_{combo['item_no']}"):
                 st.session_state.selected_combinations.pop(i)
-                st.experimental_rerun()
+                st.rerun()
         
         st.header("3. Select Currency and Generate File")
         # --- Currency Selection ---
