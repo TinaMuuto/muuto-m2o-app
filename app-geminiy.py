@@ -251,4 +251,90 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
         for i, combo in enumerate(st.session_state.selected_items_for_download):
             col1, col2 = st.columns([0.9, 0.1])
             col1.write(f"{i+1}. {combo['description']} (Vare: {combo['item_no']})")
-            if col2.button(f"Fjern", key=f"sel_remove_{i}_{combo['item_no']}
+            if col2.button(f"Fjern", key=f"sel_remove_{i}_{combo['item_no']}"): # Changed key prefix
+                item_to_remove_no = st.session_state.selected_items_for_download.pop(i)['item_no']
+                st.toast(f"Fjernet fra valgte liste: {item_to_remove_no}", icon="🗑️") # Changed message
+                st.rerun() 
+        
+        st.header("Trin 3: Vælg Valuta og Generer Fil")
+        try:
+            if not st.session_state.wholesale_prices_df.empty:
+                article_no_col_name_ws = st.session_state.wholesale_prices_df.columns[0]
+                currency_options = [col for col in st.session_state.wholesale_prices_df.columns if str(col).lower() != str(article_no_col_name_ws).lower()]
+            else:
+                currency_options = []
+                
+            selected_currency = st.selectbox("Vælg Valuta:", options=currency_options, key="currency_selector") if currency_options else None
+            if not currency_options and not st.session_state.wholesale_prices_df.empty: 
+                st.error("Ingen valuta kolonner fundet i Pris Matrix (udover Artikel Nr. kolonnen).")
+            elif st.session_state.wholesale_prices_df.empty:
+                 st.error("Pris Matrix (wholesale) er tom. Kan ikke bestemme valuta.")
+
+        except Exception as e: st.error(f"Kunne ikke bestemme valuta: {e}"); selected_currency = None
+
+        if st.button("Generer Masterdata Fil", key="generate_file") and selected_currency:
+            output_data = []
+            master_template_columns_ordered = st.session_state.template_cols.copy()
+            for combo_selection in st.session_state.selected_items_for_download: # Changed here
+                item_no_to_find = combo_selection['item_no']
+                article_no_to_find = combo_selection['article_no'] 
+                item_data_row_series_df = st.session_state.raw_df[st.session_state.raw_df['Item No'] == item_no_to_find]
+                if not item_data_row_series_df.empty:
+                    item_data_row_series = item_data_row_series_df.iloc[0]
+                    output_row_dict = {}
+                    for col_template in master_template_columns_ordered:
+                        if col_template in ["Wholesale price", "Retail price"]: continue
+                        if col_template in item_data_row_series.index: output_row_dict[col_template] = item_data_row_series[col_template]
+                        else: output_row_dict[col_template] = None 
+                    
+                    if not st.session_state.wholesale_prices_df.empty:
+                        ws_price_row_df = st.session_state.wholesale_prices_df[st.session_state.wholesale_prices_df.iloc[:, 0].astype(str) == str(article_no_to_find)]
+                        if not ws_price_row_df.empty and selected_currency in ws_price_row_df.columns:
+                            output_row_dict["Wholesale price"] = ws_price_row_df.iloc[0][selected_currency] if pd.notna(ws_price_row_df.iloc[0][selected_currency]) else "N/A"
+                        else: output_row_dict["Wholesale price"] = "Pris Ikke Fundet"
+                    else: output_row_dict["Wholesale price"] = "Pris Matrix (W) Tom"
+
+                    if not st.session_state.retail_prices_df.empty:
+                        rt_price_row_df = st.session_state.retail_prices_df[st.session_state.retail_prices_df.iloc[:, 0].astype(str) == str(article_no_to_find)]
+                        if not rt_price_row_df.empty and selected_currency in rt_price_row_df.columns:
+                            output_row_dict["Retail price"] = rt_price_row_df.iloc[0][selected_currency] if pd.notna(rt_price_row_df.iloc[0][selected_currency]) else "N/A"
+                        else: output_row_dict["Retail price"] = "Pris Ikke Fundet"
+                    else: output_row_dict["Retail price"] = "Pris Matrix (R) Tom"
+                    
+                    output_data.append(output_row_dict)
+                else: st.warning(f"Data for Vare Nr: {item_no_to_find} ikke fundet. Springes over.")
+            if output_data:
+                output_df = pd.DataFrame(output_data, columns=master_template_columns_ordered)
+                output_excel_buffer = io.BytesIO()
+                with pd.ExcelWriter(output_excel_buffer, engine='xlsxwriter') as writer: output_df.to_excel(writer, index=False, sheet_name='Masterdata Output')
+                output_excel_buffer.seek(0)
+                st.download_button(label="📥 Download Masterdata Excel Fil", data=output_excel_buffer, file_name=f"masterdata_output_{selected_currency.replace(' ', '_').replace('.', '')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            else: st.warning("Ingen data at generere.")
+        elif not selected_currency and st.session_state.selected_items_for_download : st.warning("Vælg venligst en valuta.") # Changed here
+    elif not st.session_state.selected_items_for_download : # Changed from checkbox_selected_items
+         st.info("Foretag valg i Trin 1 for at fortsætte.")
+
+
+else: 
+    st.error("En eller flere datafiler kunne ikke indlæses korrekt, eller nødvendige kolonner mangler. Kontroller stier, filformater og kolonnenavne i dine CSV-filer.")
+    if not os.path.exists(RAW_DATA_CSV_PATH): st.info(f"Mangler: {RAW_DATA_CSV_PATH}")
+    if not os.path.exists(PRICE_MATRIX_WHOLESALE_CSV_PATH): st.info(f"Mangler: {PRICE_MATRIX_WHOLESALE_CSV_PATH}")
+    if not os.path.exists(PRICE_MATRIX_RETAIL_CSV_PATH): st.info(f"Mangler: {PRICE_MATRIX_RETAIL_CSV_PATH}")
+    if not os.path.exists(MASTERDATA_TEMPLATE_CSV_PATH): st.info(f"Mangler: {MASTERDATA_TEMPLATE_CSV_PATH}")
+
+
+# --- Styling (Optional) ---
+st.markdown("""
+<style>
+    h1 { /* App Title */ color: #333; }
+    h2 { /* Step Headers */ color: #1E40AF; border-bottom: 2px solid #BFDBFE; padding-bottom: 5px; margin-top: 30px; margin-bottom: 15px; }
+    h3 { /* Product Subheaders */ background-color: #e8f0fe; padding: 10px; border-radius: 5px; margin-top: 20px; margin-bottom: 10px; font-size: 1.15em; }
+    div[data-testid="stCaptionContainer"] > div > p { font-weight: bold; font-size: 0.85em !important; color: #4A5568 !important; padding-bottom: 3px; }
+    div[data-testid="stImage"] img { max-height: 45px; border: 1px solid #e2e8f0; border-radius: 3px; padding: 2px; margin: auto; display: block; }
+    div.stCheckbox, div[data-testid="stMarkdownContainer"] { font-size: 0.9em; display: flex; align-items: center; height: 50px; }
+    div.stCheckbox { justify-content: center; }
+    hr { margin-top: 0.2rem; margin-bottom: 0.2rem; border-top: 1px solid #e2e8f0; }
+    .stButton>button { font-size: 0.9em; padding: 0.3em 0.7em; }
+    small { color: #718096; } 
+</style>
+""", unsafe_allow_html=True)
