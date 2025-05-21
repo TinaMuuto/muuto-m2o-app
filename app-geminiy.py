@@ -367,4 +367,63 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                         output_row_dict["Wholesale price"] = ws_price_row_df.iloc[0][selected_currency] if pd.notna(ws_price_row_df.iloc[0][selected_currency]) else "N/A"
                     else: output_row_dict["Wholesale price"] = "Pris Ikke Fundet"
                     
-                    rt_price_row_df = st.session_state.retail_prices_df[st.session_state.retail_prices_df.iloc[:, 0].astype(str) == str(article
+                    rt_price_row_df = st.session_state.retail_prices_df[st.session_state.retail_prices_df.iloc[:, 0].astype(str) == str(article_no_to_find)]
+                    if not rt_price_row_df.empty and selected_currency in rt_price_row_df.columns:
+                        output_row_dict["Retail price"] = rt_price_row_df.iloc[0][selected_currency] if pd.notna(rt_price_row_df.iloc[0][selected_currency]) else "N/A"
+                    else: output_row_dict["Retail price"] = "Pris Ikke Fundet"
+                    output_data.append(output_row_dict)
+                else: st.warning(f"Data for Vare Nr: {item_no_to_find} ikke fundet. Springes over.")
+            if output_data:
+                output_df = pd.DataFrame(output_data, columns=master_template_columns_ordered)
+                output_excel_buffer = io.BytesIO()
+                with pd.ExcelWriter(output_excel_buffer, engine='xlsxwriter') as writer: output_df.to_excel(writer, index=False, sheet_name='Masterdata Output')
+                output_excel_buffer.seek(0)
+                st.download_button(label="📥 Download Masterdata Excel Fil", data=output_excel_buffer, file_name=f"masterdata_output_{selected_currency.replace(' ', '_').replace('.', '')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            else: st.warning("Ingen data at generere.")
+        elif not selected_currency and st.session_state.final_items_for_download : st.warning("Vælg venligst en valuta.")
+    elif not st.session_state.checkbox_selected_items : # No initial selections made
+         st.info("Foretag valg i Trin 1.a for at fortsætte.")
+
+
+else: # Files not loaded
+    st.error("En eller flere datafiler kunne ikke indlæses. Kontroller stier og filformater.")
+    # ... (error messages about file paths)
+
+
+# --- Styling (Optional) ---
+st.markdown("""
+<style>
+    h1 { /* App Title */
+        color: #333;
+    }
+    h2 { /* Step Headers (Trin 1.a, 1.b, 2, 3) */
+        color: #1E40AF; 
+        border-bottom: 2px solid #BFDBFE; 
+        padding-bottom: 5px;
+        margin-top: 30px;
+        margin-bottom: 15px;
+    }
+    h3 { /* Product Subheaders */
+        background-color: #e8f0fe; 
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 20px; 
+        margin-bottom: 10px; 
+        font-size: 1.15em; 
+    }
+    /* Captions for column headers in matrix */
+    div[data-testid="stCaptionContainer"] > div > p {
+        font-weight: bold;
+        font-size: 0.85em !important; /* Ensure specificity */
+        color: #4A5568 !important; /* Darker gray */
+        padding-bottom: 3px;
+    }
+    /* General styling for matrix row elements */
+    div[data-testid="stImage"] img { max-height: 45px; border: 1px solid #e2e8f0; border-radius: 3px; padding: 2px; margin: auto; display: block; }
+    div.stCheckbox, div[data-testid="stMarkdownContainer"] { font-size: 0.9em; display: flex; align-items: center; height: 50px; /* Consistent row height */ }
+    div.stCheckbox { justify-content: center; } /* Center checkbox in its column */
+    hr { margin-top: 0.2rem; margin-bottom: 0.2rem; border-top: 1px solid #e2e8f0; }
+    .stButton>button { font-size: 0.9em; padding: 0.3em 0.7em; }
+    small { color: #718096; } /* Lighter text for item/article numbers */
+</style>
+""", unsafe_allow_html=True)
