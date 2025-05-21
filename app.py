@@ -46,8 +46,6 @@ textiles["Textile+Color"] = textiles["Upholstery Type"] + " - " + textiles["Upho
 # Step 2: Show matrix of product x textile/color
 st.subheader("Step 2: Select combinations")
 
-selected_items = []
-
 # Matrix header with swatches
 cols = st.columns([2] + [1 for _ in range(len(textiles))])
 cols[0].markdown("**Product**")
@@ -70,7 +68,6 @@ for prod in product_labels:
         if not match_rows.empty:
             base_colors = match_rows["Base Color"].dropna().unique()
             base_colors = [c for c in base_colors if c != "N/A"]
-            base_label = f"{prod} / {tex_row['Upholstery Type']} / {tex_row['Upholstery Color']}"
             if len(base_colors) > 1:
                 with cols[idx+1]:
                     selected = st.selectbox(
@@ -83,37 +80,33 @@ for prod in product_labels:
                         if not matched.empty:
                             item_no = matched["Item No"].values[0]
                             article_no = matched["Article No"].values[0]
-                           new_selection = {
-    "Item No": item_no,
-    "Article No": article_no
-}
-if new_selection not in st.session_state.selections:
-    st.session_state.selections.append(new_selection)
+                            new_selection = {"Item No": item_no, "Article No": article_no}
+                            if new_selection not in st.session_state.selections:
+                                st.session_state.selections.append(new_selection)
             elif len(base_colors) == 1:
                 matched = match_rows[match_rows["Base Color"] == base_colors[0]]
                 if not matched.empty:
                     item_no = matched["Item No"].values[0]
                     article_no = matched["Article No"].values[0]
-                    if st.checkbox(f"{base_colors[0]}", key=f"{prod}_{tex_row['Upholstery Color']}"):
-                        st.session_state.selections.append({
-                            "Item No": item_no,
-                            "Article No": article_no
-                        })
+                    with cols[idx+1]:
+                        if st.checkbox(f"{base_colors[0]}", key=f"{prod}_{tex_row['Upholstery Color']}"):
+                            new_selection = {"Item No": item_no, "Article No": article_no}
+                            if new_selection not in st.session_state.selections:
+                                st.session_state.selections.append(new_selection)
 
 # --- Show selection summary and export ---
-
 if st.session_state.selections:
     st.subheader("Selected combinations")
 
-   # Vis og fjern valgte kombinationer
-for idx, sel in enumerate(st.session_state.selections):
-    col1, col2 = st.columns([6, 1])
-    with col1:
-        st.markdown(f"- **{sel['Item No']}** (Article No: {sel['Article No']})")
-    with col2:
-        if st.button("❌", key=f"remove_{idx}"):
-            st.session_state.selections.pop(idx)
-            st.experimental_rerun()
+    for idx, sel in enumerate(st.session_state.selections):
+        col1, col2 = st.columns([6, 1])
+        with col1:
+            st.markdown(f"- **{sel['Item No']}** (Article No: {sel['Article No']})")
+        with col2:
+            if st.button("\u274C", key=f"remove_{idx}"):
+                st.session_state.selections.pop(idx)
+                st.experimental_rerun()
+
     # Step 3: Choose currency
     currencies = [c for c in wholesale_prices.columns if c != "Article No."]
     selected_currency = st.selectbox("Step 3: Choose your currency", currencies)
@@ -149,9 +142,8 @@ for idx, sel in enumerate(st.session_state.selections):
         output.seek(0)
 
         st.download_button(
-            label="📥 Download masterdata file",
+            label="\ud83d\udcc5 Download masterdata file",
             data=output,
             file_name=f"Muuto_matrix_output_{selected_currency}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-
