@@ -567,16 +567,16 @@ st.markdown("""
     .product-name-cell {
         display: flex;
         align-items: center; 
-        height: auto; /* Let height be determined by content up to max-height */
-        min-height: 30px; /* Ensure it's at least as tall as checkbox row for alignment */
+        height: auto; 
+        min-height: 30px; 
         line-height: 1.3; 
-        max-height: calc(1.3em * 2 + 4px); /* Max height for approx two lines + small padding */
-        overflow-y: hidden; /* Hide vertical overflow if text exceeds max-height */
+        max-height: calc(1.3em * 2 + 4px); 
+        overflow-y: hidden; 
         color: #31333F !important; 
         font-weight: normal !important; 
         font-size: 0.8em !important; 
         padding-right: 5px; 
-        word-break: break-word; /* Allow long words to break to prevent horizontal overflow */
+        word-break: break-word; 
     }
 
     /* Container for checkbox or grey box within each matrix data cell */
@@ -589,6 +589,15 @@ st.markdown("""
         padding: 0 !important; 
         margin: 0 !important;
     }
+    /* This ensures the stMarkdownContainer within stVerticalBlock also behaves for centering the grey box */
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] > div[data-testid="stMarkdown"] > div[data-testid="stMarkdownContainer"] {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100%; 
+        height: 100%; 
+    }
+
 
     /* --- Checkbox Styling --- */
     div.stCheckbox {
@@ -605,6 +614,7 @@ st.markdown("""
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
+        padding: 0 !important;
     }
     /* Visual box of the checkbox - UNCHECKED STATE */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > input[type="checkbox"][aria-checked="false"] ~ div span:first-child,
@@ -615,6 +625,7 @@ st.markdown("""
         width: 20px !important; 
         height: 20px !important;
         border-radius: 0.25rem !important;
+        margin: 0 !important;
     }
     /* Checkmark SVG - UNCHECKED STATE (invisible) */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > input[type="checkbox"][aria-checked="false"] ~ div span:first-child svg,
@@ -642,7 +653,6 @@ st.markdown("""
         background-color: #e9ecef !important;
         border: 1px solid #ced4da !important;
         border-radius: 0.25rem !important;
-        /* Centered by its parent stVerticalBlock */
     }
 
 
@@ -713,23 +723,34 @@ st.markdown("""
         line-height:1.1;
     }
     /* --- Multiselect Tags Styling --- */
+    /* This targets the selected tag itself within the stMultiSelect widget */
     div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] {
         background-color: #5B4A14 !important; 
         border-radius: 0.25rem !important; 
         padding-top: 0.2em !important; 
         padding-bottom: 0.2em !important;
         border: none !important; 
+        line-height: 1.2 !important; /* Added for better vertical centering of text and icon */
     }
+    /* Text inside selected tag */
     div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[title] {
         color: white !important;
         font-size: 0.85em !important;
-        line-height: 1.2 !important; 
+        line-height: inherit !important; /* Inherit line-height from parent tag */
         margin-right: 4px !important; 
+        vertical-align: middle !important; /* Align text vertically */
     }
+    /* Close 'x' icon container span */
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] {
+        display: inline-flex !important; /* Helps with vertical alignment of SVG */
+        align-items: center !important;
+    }
+    /* Close 'x' icon SVG in selected tag */
     div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] svg {
         fill: white !important;
         width: 1em !important; 
         height: 1em !important;
+        vertical-align: middle !important; /* Align SVG vertically */
     }
 
 
