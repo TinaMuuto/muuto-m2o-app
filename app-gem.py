@@ -577,6 +577,7 @@ st.markdown("""
         font-size: 0.8em !important; 
         padding-right: 5px; 
         word-break: break-word; 
+        box-sizing: border-box;
     }
 
     /* Container for checkbox or grey box within each matrix data cell */
@@ -588,6 +589,7 @@ st.markdown("""
         justify-content: center !important; 
         padding: 0 !important; 
         margin: 0 !important;
+        box-sizing: border-box;
     }
     /* This ensures the stMarkdownContainer within stVerticalBlock also behaves for centering the grey box */
     div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] > div[data-testid="stMarkdown"] > div[data-testid="stMarkdownContainer"] {
@@ -596,28 +598,33 @@ st.markdown("""
         justify-content: center !important;
         width: 100%; 
         height: 100%; 
+        box-sizing: border-box;
     }
 
 
     /* --- Checkbox Styling --- */
-    div.stCheckbox {
+    div.stCheckbox { /* The main wrapper for st.checkbox widget */
          margin: 0 !important;
+         padding: 0 !important; 
          display: flex !important;
          align-items: center !important;
          justify-content: center !important;
-         width: 20px; 
-         height: 20px; 
+         width: 20px !important; 
+         height: 20px !important; 
+         box-sizing: border-box !important;
     }
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] {
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] { /* The label that wraps the visual parts */
         width: 20px !important; 
         height: 20px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         padding: 0 !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
     }
     /* Visual box of the checkbox - UNCHECKED STATE */
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > input[type="checkbox"][aria-checked="false"] ~ div span:first-child,
+    /* Targets the first span child of the label, which is the visual box */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child { 
         background-color: #FFFFFF !important; 
         border: 1px solid #5B4A14 !important; 
@@ -626,14 +633,21 @@ st.markdown("""
         height: 20px !important;
         border-radius: 0.25rem !important;
         margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        display: flex !important; /* To center the SVG checkmark */
+        align-items: center !important;
+        justify-content: center !important;
     }
-    /* Checkmark SVG - UNCHECKED STATE (invisible) */
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > input[type="checkbox"][aria-checked="false"] ~ div span:first-child svg,
+    /* Checkmark SVG - UNCHECKED STATE (effectively invisible) */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child svg {
         fill: #FFFFFF !important; 
+        width: 12px !important; /* Adjust size of SVG if needed */
+        height: 12px !important;
     }
 
     /* Visual box of the checkbox - CHECKED STATE */
+    /* Uses :has() to style the span when the input sibling is checked */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child {
         background-color: #5B4A14 !important; 
         border-color: #5B4A14 !important; 
@@ -653,6 +667,7 @@ st.markdown("""
         background-color: #e9ecef !important;
         border: 1px solid #ced4da !important;
         border-radius: 0.25rem !important;
+        box-sizing: border-box;
     }
 
 
@@ -724,25 +739,30 @@ st.markdown("""
     }
     /* --- Multiselect Tags Styling --- */
     /* This targets the selected tag itself within the stMultiSelect widget */
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] {
+    /* Using .st-eh as identified from user's HTML snippet for increased specificity */
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-eh,
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-ei, /* Fallback for st-ei */
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] /* General selected tag */
+     {
         background-color: #5B4A14 !important; 
+        background-image: none !important; /* Ensure no gradient from other rules */
         border-radius: 0.25rem !important; 
         padding-top: 0.2em !important; 
         padding-bottom: 0.2em !important;
         border: none !important; 
-        line-height: 1.2 !important; /* Added for better vertical centering of text and icon */
+        line-height: 1.2 !important; 
     }
     /* Text inside selected tag */
     div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[title] {
         color: white !important;
         font-size: 0.85em !important;
-        line-height: inherit !important; /* Inherit line-height from parent tag */
+        line-height: inherit !important; 
         margin-right: 4px !important; 
-        vertical-align: middle !important; /* Align text vertically */
+        vertical-align: middle !important; 
     }
     /* Close 'x' icon container span */
     div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] {
-        display: inline-flex !important; /* Helps with vertical alignment of SVG */
+        display: inline-flex !important; 
         align-items: center !important;
     }
     /* Close 'x' icon SVG in selected tag */
@@ -750,7 +770,7 @@ st.markdown("""
         fill: white !important;
         width: 1em !important; 
         height: 1em !important;
-        vertical-align: middle !important; /* Align SVG vertically */
+        vertical-align: middle !important; 
     }
 
 
