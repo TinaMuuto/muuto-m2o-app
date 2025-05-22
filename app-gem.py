@@ -470,7 +470,6 @@ st.markdown("""
     h1 { color: #333; } /* App Title */
     h2 { /* Step Headers */
         color: #1E40AF; 
-        border-bottom: 2px solid #BFDBFE; 
         padding-bottom: 5px; 
         margin-top: 30px; 
         margin-bottom: 15px; 
