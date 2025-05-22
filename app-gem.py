@@ -427,7 +427,7 @@ else:
 st.markdown("""
 <style>
     body {
-        background-color: #EFEEEB;
+        background-color: #ff4b4b;
     }
     /* Ensure main app area also gets background if body doesn't cover all */
     .main .block-container {
