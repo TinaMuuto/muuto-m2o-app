@@ -272,8 +272,8 @@ if files_loaded_successfully:
                                             args=(prod_name, current_col_uph_type_filter, current_col_uph_color_filter, cb_key_str),
                                             label_visibility="collapsed")
                             else:
-                                unique_key_for_grey_box = f"greybox_{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}_{i}"
-                                cell_container.markdown(f"<div class='unavailable-matrix-cell' id='{unique_key_for_grey_box}'></div>", unsafe_allow_html=True)
+                                # Show nothing for unavailable combinations
+                                pass
         else:
             if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"No data found for product family: {selected_family}")
 
@@ -657,18 +657,8 @@ st.markdown("""
         fill: #FFFFFF !important; 
     }
 
-
-    /* --- Unavailable Matrix Cell (Grey Box) Styling --- */
-    .unavailable-matrix-cell {
-        width: 20px !important;
-        height: 20px !important;
-        min-width: 20px !important;
-        min-height: 20px !important;
-        background-color: #e9ecef !important;
-        border: 1px solid #ced4da !important;
-        border-radius: 0.25rem !important;
-        box-sizing: border-box;
-    }
+    /* --- Unavailable Matrix Cell (Grey Box) Styling - REMOVED as per request --- */
+    /* .unavailable-matrix-cell { ... } */
 
 
     hr {
@@ -739,10 +729,10 @@ st.markdown("""
     }
     /* --- Multiselect Tags Styling --- */
     /* This targets the selected tag itself within the stMultiSelect widget */
-    /* Using .st-eh as identified from user's HTML snippet for increased specificity */
+    /* Using .st-eh and .st-ei as identified from user's HTML snippet for increased specificity */
     div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-eh,
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-ei, /* Fallback for st-ei */
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] /* General selected tag */
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-ei,
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] /* General selected tag as fallback */
      {
         background-color: #5B4A14 !important; 
         background-image: none !important; /* Ensure no gradient from other rules */
