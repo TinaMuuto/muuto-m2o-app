@@ -167,8 +167,6 @@ if files_loaded_successfully:
                 }
                 st.session_state.matrix_selected_generic_items[generic_item_key] = item_data
                 st.toast(f"Selected: {prod_name} / {uph_type} / {uph_color}", icon="➕")
-            # else:
-                # st.warning(f"No item found for {prod_name} / {uph_type} / {uph_color}") # Warning removed
         else:
             if generic_item_key in st.session_state.matrix_selected_generic_items:
                 del st.session_state.matrix_selected_generic_items[generic_item_key]
@@ -231,7 +229,7 @@ if files_loaded_successfully:
                         else:
                             sw_url = data_column_map[i-1]['swatch']
                             with col_widget:
-                                if sw_url and pd.notna(sw_url): # Added pd.notna check
+                                if sw_url and pd.notna(sw_url):
                                     st.image(sw_url, width=30)
                                 else:
                                     st.markdown("<div class='swatch-placeholder'></div>", unsafe_allow_html=True)
@@ -245,7 +243,7 @@ if files_loaded_successfully:
                             with col_widget:
                                 st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
 
-                    st.markdown("---")
+                    st.markdown("---") # This HR separates headers from product rows
 
                     for prod_name in products_in_family:
                         cols_product_row = st.columns([2.5] + [1] * num_data_columns)
@@ -266,20 +264,18 @@ if files_loaded_successfully:
 
                             if not item_exists_df.empty:
                                 cb_key_str = f"cb_{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ","_").replace("/","_").replace("(","").replace(")","")
-                                # Check if this specific generic item is selected in the session state
-                                is_gen_selected = generic_item_key = f"{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
-                                is_gen_selected = is_gen_selected in st.session_state.matrix_selected_generic_items
-
+                                generic_item_key_for_check = f"{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
+                                is_gen_selected = generic_item_key_for_check in st.session_state.matrix_selected_generic_items
 
                                 cell_container.checkbox(" ", value=is_gen_selected, key=cb_key_str,
                                             on_change=handle_matrix_cb_toggle,
                                             args=(prod_name, current_col_uph_type_filter, current_col_uph_color_filter, cb_key_str),
                                             label_visibility="collapsed")
                             else:
-                                cell_container.checkbox(" ", value=False,
-                                                        key=f"cb_disabled_{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}_{i}",
-                                                        disabled=True, label_visibility="collapsed")
-                        st.markdown("---")
+                                # Show a grey box for unavailable combinations
+                                unique_key_for_grey_box = f"greybox_{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}_{i}"
+                                cell_container.markdown(f"<div class='unavailable-matrix-cell' id='{unique_key_for_grey_box}'></div>", unsafe_allow_html=True)
+                        # st.markdown("---") # Removed HR between product lines
         else:
             if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"No data found for product family: {selected_family}")
 
@@ -288,7 +284,7 @@ if files_loaded_successfully:
         item_data for key, item_data in st.session_state.matrix_selected_generic_items.items() if item_data.get('requires_base_choice')
     ]
     if items_needing_base_choice_now:
-        st.subheader("Step 1a: Specify Base Colors (if applicable)") # Changed from st.header
+        st.subheader("Step 1a: Specify Base Colors (if applicable)")
         for generic_item in items_needing_base_choice_now:
             item_key = generic_item['key']
             multiselect_key = f"ms_base_{item_key}"
@@ -297,7 +293,7 @@ if files_loaded_successfully:
             current_selection_for_this_item = st.session_state.user_chosen_base_colors_for_items.get(item_key, [])
 
             st.multiselect(
-                f"Available base colors. You can select multiple:", # Simplified label
+                f"Available base colors. You can select multiple:",
                 options=generic_item['available_bases'],
                 default=current_selection_for_this_item,
                 key=multiselect_key,
@@ -307,7 +303,7 @@ if files_loaded_successfully:
             st.markdown("---")
 
     # --- Step 2: Review Selections ---
-    st.header("Step 2: Review Selections") # Renumbered
+    st.header("Step 2: Review Selections")
     _current_final_items = []
     for key, gen_item_data in st.session_state.matrix_selected_generic_items.items():
         if not gen_item_data['requires_base_choice']:
@@ -320,7 +316,6 @@ if files_loaded_successfully:
                 })
         else:
             selected_bases_for_this = st.session_state.user_chosen_base_colors_for_items.get(key, [])
-            # Removed caption for pending base color selection
             for bc in selected_bases_for_this:
                 specific_item_df = st.session_state.raw_df[
                     (st.session_state.raw_df['Product Family'] == gen_item_data['family']) &
@@ -360,25 +355,19 @@ if files_loaded_successfully:
                         if original_matrix_key in st.session_state.user_chosen_base_colors_for_items:
                             if combo['chosen_base'] in st.session_state.user_chosen_base_colors_for_items[original_matrix_key]:
                                 st.session_state.user_chosen_base_colors_for_items[original_matrix_key].remove(combo['chosen_base'])
-                                if not st.session_state.user_chosen_base_colors_for_items[original_matrix_key]: # If no bases left for this generic item
-                                    # Only remove from matrix_selected_generic_items if ALL base choices for it are gone
-                                    # This logic might need adjustment if a generic item should persist even with 0 chosen bases
-                                    # For now, if all chosen bases are removed, the generic item itself is removed from selections
+                                if not st.session_state.user_chosen_base_colors_for_items[original_matrix_key]:
                                     if not any(st.session_state.user_chosen_base_colors_for_items.get(original_matrix_key, [])):
                                          del st.session_state.matrix_selected_generic_items[original_matrix_key]
-
-                    else: # Item did not require base choice or was a single base item
+                    else:
                         if original_matrix_key in st.session_state.matrix_selected_generic_items:
                             del st.session_state.matrix_selected_generic_items[original_matrix_key]
-
                 st.session_state.final_items_for_download.pop(i)
                 st.toast(f"Removed: {combo['description']}", icon="🗑️")
                 st.rerun()
         st.markdown("---")
-    # Removed st.info about some selections requiring base color choices
 
     # --- Step 3: Select Currency ---
-    st.header("Step 3: Select Currency") # Renumbered
+    st.header("Step 3: Select Currency")
     selected_currency = None
     try:
         if not st.session_state.wholesale_prices_df.empty:
@@ -403,34 +392,28 @@ if files_loaded_successfully:
         if not currency_options or len(currency_options) <=1 :
             if not st.session_state.wholesale_prices_df.empty:
                 st.error("No currency columns found in Price Matrix.")
-            # elif st.session_state.wholesale_prices_df.empty: # This condition is already covered by the outer if
-                # st.error("Price Matrix (wholesale) is empty.") # This error might be redundant if files_loaded_successfully handles it
     except Exception as e:
         st.error(f"Error with currency selection: {e}")
         selected_currency = None
 
 
     # --- Step 4: Generate Master Data File ---
-    st.header("Step 4: Generate Master Data File") # Renumbered
+    st.header("Step 4: Generate Master Data File")
 
     def prepare_excel_for_download_final():
         if not st.session_state.final_items_for_download:
-            # st.warning("No items have been confirmed for download. Please review selections in Step 2.") # Warning removed
             return None
-
         current_selected_currency_for_dl = st.session_state.selected_currency_session
         if not current_selected_currency_for_dl:
-            # st.warning("Please select a currency in Step 3 before generating the file.") # Warning removed
             return None
 
         output_data = []
         ws_price_col_name_dynamic = f"Wholesale price ({current_selected_currency_for_dl})"
         rt_price_col_name_dynamic = f"Retail price ({current_selected_currency_for_dl})"
 
-        # Refined logic for master_template_columns_final_output
         final_cols = []
         seen_output_cols = set()
-        for col_template in st.session_state.template_cols: # Assumes template_cols already has generic price cols if needed
+        for col_template in st.session_state.template_cols:
             col_template_lower = col_template.lower()
             if col_template_lower == "wholesale price":
                 target_col = ws_price_col_name_dynamic
@@ -442,7 +425,6 @@ if files_loaded_successfully:
                 final_cols.append(target_col)
                 seen_output_cols.add(target_col)
         master_template_columns_final_output = final_cols
-
 
         for combo_selection in st.session_state.final_items_for_download:
             item_no_to_find = combo_selection['item_no']; article_no_to_find = combo_selection['article_no']
@@ -464,7 +446,6 @@ if files_loaded_successfully:
                     else: output_row_dict[rt_price_col_name_dynamic] = "Price Not Found"
                 else: output_row_dict[rt_price_col_name_dynamic] = "Retail Matrix Empty"
                 output_data.append(output_row_dict)
-            # else: st.warning(f"Data for Item No: {item_no_to_find} not found during file generation.") # Warning removed
 
         if not output_data:
             return None
@@ -484,12 +465,11 @@ if files_loaded_successfully:
                 data=file_bytes,
                 file_name=f"masterdata_output_{st.session_state.selected_currency_session.replace(' ', '_').replace('.', '')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="final_download_action_button_v6", # Unique key
+                key="final_download_action_button_v7",
                 help="Click to generate and download your customized master data file."
             )
     else:
-        st.button("Generate Master Data File", key="generate_file_disabled_button_v4", disabled=True, help="Please ensure items are selected (Step 1), reviewed (Step 2), and a currency is chosen (Step 3).")
-        # Removed st.warning for reviewing selections
+        st.button("Generate Master Data File", key="generate_file_disabled_button_v5", disabled=True, help="Please ensure items are selected (Step 1), reviewed (Step 2), and a currency is chosen (Step 3).")
 
 else:
     st.error("One or more data files could not be loaded correctly, or required columns are missing. Please check file paths, formats, and column names in your .xlsx files.")
@@ -502,9 +482,9 @@ st.markdown("""
     .stApp, body {
         background-color: #EFEEEB !important;
     }
-    /* More specific selector for main content area if needed */
     .main .block-container {
         background-color: #EFEEEB !important;
+        padding-top: 2rem; /* Add some padding at the top of the main content */
     }
 
     h1 { color: #333; } /* App Title */
@@ -515,8 +495,8 @@ st.markdown("""
         margin-bottom: 15px;
     }
      h3 { /* Sub-step Headers like 1a */
-        color: #1E40AF; /* Same as H2 or slightly different */
-        font-size: 1.25em; /* Slightly smaller than H2 if H2 is default 1.5em or 1.75em */
+        color: #1E40AF;
+        font-size: 1.25em;
         padding-bottom: 3px;
         margin-top: 20px;
         margin-bottom: 10px;
@@ -524,7 +504,7 @@ st.markdown("""
     /* Styling for the matrix-like headers */
     div[data-testid="stCaptionContainer"] > div > p {
         font-weight: bold;
-        font-size: 0.6em !important; /* Corrected typo */
+        font-size: 0.6em !important;
         color: #4A5568 !important;
         text-align: center;
         white-space: normal;
@@ -532,9 +512,8 @@ st.markdown("""
         line-height: 1;
         padding: 2px;
     }
-    /* Specifically target Upholstery Type headers for no-wrap */
     .upholstery-header {
-        white-space: normal !important; /* Allow wrapping */
+        white-space: normal !important;
         overflow: visible !important;
         text-overflow: clip !important;
         display: block;
@@ -547,7 +526,6 @@ st.markdown("""
         object-fit: cover !important;
         margin-right:2px;
     }
-    /* Placeholder for empty swatch in header */
     .swatch-placeholder {
         width:25px !important;
         height:25px !important;
@@ -566,49 +544,84 @@ st.markdown("""
         padding-top: 10px;
     }
 
-    /* Custom styling for the checkbox itself when checked */
-    label[data-testid="stCheckbox"] input[type="checkbox"]:checked + div {
-        background-color: #5B4A14 !important;
-        border-color: #5B4A14 !important;
+    /* --- Logo Styling --- */
+    /* Ensure logo is not cropped by rounded corners from its container(s) */
+    div[data-testid="stImage"], /* Targets the container Streamlit wraps around the image */
+    div[data-testid="stImage"] img { /* Targets the image itself */
+        border-radius: 0 !important;
+        overflow: visible !important; /* Ensures content isn't clipped */
     }
-    label[data-testid="stCheckbox"] input[type="checkbox"]:checked + div svg { /* Checkmark color */
+
+    /* --- Checkbox Styling --- */
+    /* Container for consistent alignment of checkbox and unavailable-cell */
+    div[data-testid="stVerticalBlock"] div.stCheckbox, /* Target Streamlit's checkbox container */
+    div[data-testid="stVerticalBlock"] .unavailable-matrix-cell { /* Target our custom cell */
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        height: 30px !important; /* Ensure consistent height for alignment */
+        padding-top: 5px; /* Adjust as needed for vertical centering */
+    }
+
+    /* Selected Checkbox Styling - More Specific */
+    div[data-testid="stCheckbox"] label input[type="checkbox"]:checked + div {
+        background-color: #5B4A14 !important; /* Muuto Gold */
+        border-color: #5B4A14 !important;
+        box-shadow: none !important;
+    }
+    div[data-testid="stCheckbox"] label input[type="checkbox"]:checked + div svg {
         fill: white !important;
     }
-    /* Styling for DISABLED checkboxes to make them visible but inactive */
-    label[data-testid="stCheckbox"] input[type="checkbox"]:disabled + div {
-        background-color: #e0e0e0 !important; /* Lighter grey background */
-        border-color: #cccccc !important;     /* Lighter grey border */
-        opacity: 0.7 !important;              /* Slightly transparent */
-    }
-    label[data-testid="stCheckbox"] input[type="checkbox"]:disabled + div svg {
-        fill: #aaaaaa !important; /* Grey checkmark if one appears, often not for disabled */
+
+    /* Unavailable Matrix Cell (Grey Box) */
+    .unavailable-matrix-cell {
+        width: 20px !important;
+        height: 20px !important;
+        background-color: #e9ecef !important; /* Lighter grey, closer to Bootstrap's default disabled */
+        border: 1px solid #ced4da !important;
+        border-radius: 0.25rem !important; /* Standard Bootstrap rounding */
     }
 
 
-    hr {
-        margin-top: 0.1rem;
-        margin-bottom: 0.1rem;
+    hr { /* General HR, like one after matrix headers */
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+        border-top: 1px solid #dee2e6; /* Lighter border */
+    }
+    section[data-testid="stSidebar"] hr { /* HR in sidebar if any */
+        margin-top: 0.1rem !important;
+        margin-bottom: 0.1rem !important;
+    }
 
+
+    /* --- Button Styling --- */
+    div[data-testid="stButton"] > button {
+        border: 1px solid #5B4A14 !important; /* Muuto Gold border */
+        background-color: #FFFFFF !important; /* White background */
+        color: #5B4A14 !important; /* Muuto Gold text */
+        padding: 0.375rem 0.75rem !important; /* Standard Bootstrap padding */
+        font-size: 1rem !important; /* Standard font size */
+        line-height: 1.5 !important;
+        border-radius: 0.25rem !important; /* Standard Bootstrap rounding */
+        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
+        font-weight: 500 !important;
     }
-    /* Button styling for hover and active states */
-    .stButton>button { /* Default button state */
-        border-color: #5B4A14 !important;
-        color: #5B4A14 !important;
-        background-color: #FFFFFF !important;
-    }
-    .stButton>button:hover {
-        border-color: #5B4A14 !important;
-        color: white !important;
+    div[data-testid="stButton"] > button:hover {
         background-color: #5B4A14 !important;
-    }
-    .stButton>button:active, .stButton>button:focus, .stButton>button:focus-visible {
+        color: #FFFFFF !important;
         border-color: #5B4A14 !important;
-        color: white !important;
-        background-color: #4A3D10 !important;
-        box-shadow: 0 0 0 0.2rem rgba(91, 74, 20, 0.5) !important;
-        outline: 2px solid #5B4A14 !important;
-        outline-offset: 2px !important;
     }
+    div[data-testid="stButton"] > button:active,
+    div[data-testid="stButton"] > button:focus,
+    div[data-testid="stButton"] > button:focus-visible {
+        background-color: #4A3D10 !important; /* Darker Muuto Gold */
+        color: #FFFFFF !important;
+        border-color: #4A3D10 !important;
+        box-shadow: 0 0 0 0.2rem rgba(91, 74, 20, 0.4) !important; /* Adjusted shadow */
+        outline: none !important; /* Remove default browser outline */
+    }
+
+
     small {
         color: #718096;
         font-size:0.9em;
