@@ -56,14 +56,14 @@ Welcome to Muuto's Made-to-Order (MTO) Product Configurator!
 
 This tool simplifies selecting MTO products and generating the data you need for your systems. Here's how it works:
 
-—   **Select Product Family & Combinations:**
+* **Select Product Family & Combinations:**
     * Choose a product family to view its available products and upholstery options.
     * Select your desired product, upholstery, and color combinations directly in the matrix. You can easily switch product families to add more items to your overall selection.
-—   **Specify Base Colors (if applicable):**
+* **Specify Base Colors (if applicable):**
     * For items where multiple base colors are available, you can select one or more options using the multiselect feature.
-—   **Select Currency:**
+* **Select Currency:**
     * Choose your preferred currency for pricing.
-—   **Generate Master Data File:**
+* **Generate Master Data File:**
     * After making your selections and choosing a currency, generate and download an Excel file containing all master data for your selected items.
 """)
 
@@ -175,7 +175,8 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                 st.toast(f"Deselected: {prod_name} / {uph_type} / {uph_color}", icon="➖")
 
     # Callback for base color multiselect
-    def handle_base_color_multiselect_change(new_value, item_key_for_base_select): # Corrected signature
+    def handle_base_color_multiselect_change(item_key_for_base_select, multiselect_widget_key):
+        new_value = st.session_state[multiselect_widget_key] # Get value from session_state using widget's key
         st.session_state.user_chosen_base_colors_for_items[item_key_for_base_select] = new_value
 
 
@@ -290,14 +291,13 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             
             current_selection_for_this_item = st.session_state.user_chosen_base_colors_for_items.get(item_key, [])
 
-            # The value of the multiselect is implicitly passed as the first argument to on_change
             st.multiselect(
                 f"Available base colors:",
                 options=generic_item['available_bases'],
                 default=current_selection_for_this_item,
                 key=multiselect_key, 
                 on_change=handle_base_color_multiselect_change, 
-                args=(item_key,) # Pass item_key as an additional argument
+                args=(item_key, multiselect_key) # Pass item_key and the widget's own key
             )
             st.markdown("---")
 
@@ -337,7 +337,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
     # --- Step 4: Generate Master Data File ---
     st.header("Step 4: Generate Master Data File")
     if st.button("Generate Master Data File", key="generate_file_final_button"):
-        if not st.session_state.matrix_selected_generic_items: # Check if any initial selections were made
+        if not st.session_state.matrix_selected_generic_items: 
             st.warning("Please select at least one product combination in Step 1.")
         elif not selected_currency:
             st.warning("Please select a currency in Step 3 before generating the file.")
@@ -433,8 +433,8 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                 else: st.warning("No data to generate for the file.")
             else: 
                 st.warning("No fully specified items to generate. Please complete selections in Step 1 & 2, then select a currency.")
-    else:
-        st.info("Select items in Step 1 to enable file generation.")
+    # else: # This else block was for when matrix_selected_generic_items was empty
+        # st.info("Select items in Step 1 to enable file generation.") # Removed this info box
 
 
 else: 
@@ -522,6 +522,7 @@ st.markdown("""
     }
     
     /* Custom styling for the checkbox itself when checked */
+    /* More specific selector to override Streamlit's default theme */
     label[data-testid="stCheckbox"] input[type="checkbox"]:checked + div {
         background-color: #5B4A14 !important; 
         border-color: #5B4A14 !important;
