@@ -61,6 +61,8 @@ This tool simplifies selecting MTO products and generating the data you need for
     * Select your desired product, upholstery, and color combinations directly in the matrix. You can easily switch product families to add more items to your overall selection.
 * **Specify Base Colors (if applicable):**
     * For items where multiple base colors are available, you can select one or more options using the multiselect feature.
+* **Confirm & Review Selections:**
+    * Confirm your choices and review the final list of configured products. You can remove items from this list if needed.
 * **Select Currency:**
     * Choose your preferred currency for pricing.
 * **Generate Master Data File:**
@@ -176,8 +178,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
 
     # Corrected Callback for base color multiselect
     def handle_base_color_multiselect_change(item_key_for_base_select):
-        # The widget's key is needed to get its current value from session_state
-        multiselect_widget_key = f"ms_base_{item_key_for_base_select}"
+        multiselect_widget_key = f"ms_base_{item_key_for_base_select}" # Reconstruct the widget key
         st.session_state.user_chosen_base_colors_for_items[item_key_for_base_select] = st.session_state[multiselect_widget_key]
 
 
@@ -227,7 +228,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                     for i, col_widget in enumerate(cols_swatch_header):
                         if i == 0: 
                             with col_widget: 
-                                st.markdown("<div class='zoom-instruction'><br>(Click swatch to zoom)</div>", unsafe_allow_html=True)
+                                st.markdown("<div class='zoom-instruction'><br>(Click swatch in header to zoom)</div>", unsafe_allow_html=True)
                         else:
                             sw_url = data_column_map[i-1]['swatch']
                             with col_widget:
@@ -279,12 +280,12 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"No data found for product family: {selected_family}")
 
 
-    # --- Select Base Colors ---
+    # --- Step 2: Select Base Colors ---
     items_needing_base_choice_now = [
         item_data for key, item_data in st.session_state.matrix_selected_generic_items.items() if item_data.get('requires_base_choice')
     ]
     if items_needing_base_choice_now:
-        st.header("Select Base Colors for one or more of the combinations you have created")
+        st.header("Step 2: Select Base Colors")
         for generic_item in items_needing_base_choice_now:
             item_key = generic_item['key']
             multiselect_key = f"ms_base_{item_key}" 
@@ -293,17 +294,87 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             current_selection_for_this_item = st.session_state.user_chosen_base_colors_for_items.get(item_key, [])
 
             st.multiselect(
-                f"Choose one or more base color oprionts avilable:",
+                f"Available base colors:",
                 options=generic_item['available_bases'],
                 default=current_selection_for_this_item,
                 key=multiselect_key, 
                 on_change=handle_base_color_multiselect_change, 
-                args=(item_key,) # Only pass item_key, widget_key will be reconstructed in callback
+                args=(item_key,) 
             )
             st.markdown("---")
+    
+    # --- Step 3: Confirm Selections & Review List ---
+    st.header("Step 3: Confirm Selections & Review List")
+    # This button now only populates/updates final_items_for_download for review
+    if st.button("Compile Final List for Review", key="compile_list_button"):
+        st.session_state.final_items_for_download = [] 
+        for key, gen_item_data in st.session_state.matrix_selected_generic_items.items():
+            if not gen_item_data['requires_base_choice']:
+                if gen_item_data.get('item_no_if_single_base') is not None: 
+                    st.session_state.final_items_for_download.append({
+                        "description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']}" + (f" / Base: {gen_item_data['resolved_base_if_single']}" if pd.notna(gen_item_data['resolved_base_if_single']) else ""),
+                        "item_no": gen_item_data['item_no_if_single_base'],
+                        "article_no": gen_item_data['article_no_if_single_base'],
+                        "key_in_matrix": key # For removal logic
+                    })
+            else:
+                selected_bases_for_this = st.session_state.user_chosen_base_colors_for_items.get(key, [])
+                if not selected_bases_for_this:
+                    st.warning(f"No base color selected for {gen_item_data['product']} ({gen_item_data['upholstery_type']}/{gen_item_data['upholstery_color']}). This item will not be added to the final list until a base color is chosen.")
+                    continue
+                for bc in selected_bases_for_this:
+                    specific_item_df = st.session_state.raw_df[
+                        (st.session_state.raw_df['Product Family'] == gen_item_data['family']) &
+                        (st.session_state.raw_df['Product Display Name'] == gen_item_data['product']) &
+                        (st.session_state.raw_df['Upholstery Type'].fillna("N/A") == gen_item_data['upholstery_type']) &
+                        (st.session_state.raw_df['Upholstery Color'].astype(str).fillna("N/A") == gen_item_data['upholstery_color']) &
+                        (st.session_state.raw_df['Base Color Cleaned'].fillna("N/A") == bc)
+                    ]
+                    if not specific_item_df.empty:
+                        actual_item = specific_item_df.iloc[0]
+                        st.session_state.final_items_for_download.append({
+                            "description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']} / Base: {bc}",
+                            "item_no": actual_item['Item No'],
+                            "article_no": actual_item['Article No'],
+                            "key_in_matrix": key, 
+                            "chosen_base": bc 
+                        })
+                    else:
+                        st.error(f"ERROR: Could not find item for {gen_item_data['product']} ({gen_item_data['upholstery_type']}/{gen_item_data['upholstery_color']}) with base {bc}. Check data.")
+        
+        final_list_unique = []
+        seen_item_nos_final = set()
+        for item in st.session_state.final_items_for_download:
+            # Create a more unique key for de-duplication if items can be identical except for description details
+            unique_key_for_dedup = f"{item['item_no']}_{item.get('chosen_base', 'single_base')}" 
+            if unique_key_for_dedup not in seen_item_nos_final:
+                final_list_unique.append(item)
+                seen_item_nos_final.add(unique_key_for_dedup)
+        st.session_state.final_items_for_download = final_list_unique
+        if st.session_state.final_items_for_download or not st.session_state.matrix_selected_generic_items : 
+             st.success("Final list compiled for review!")
+        st.rerun()
 
-    # --- Step 2: Select Currency ---
-    st.header("Step 2: Select Currency")
+    # Display the compiled list for review
+    if st.session_state.final_items_for_download:
+        st.markdown("**Final Selections:**")
+        for i, combo in enumerate(st.session_state.final_items_for_download):
+            col1_rev, col2_rev = st.columns([0.9, 0.1])
+            col1_rev.write(f"{i+1}. {combo['description']} (Item: {combo['item_no']})")
+            if col2_rev.button(f"Remove", key=f"final_review_remove_{i}_{combo['item_no']}_{combo.get('chosen_base','nobase')}"):
+                # This removal logic needs to be robust to update matrix_selected_generic_items or user_chosen_base_colors_for_items
+                # For simplicity now, it just removes from this display list. The user would need to re-compile if they want to change Step 1/2 selections.
+                # A more advanced removal would trace back to the original selection and deselect it.
+                st.session_state.final_items_for_download.pop(i)
+                st.toast(f"Removed: {combo['description']}", icon="🗑️")
+                st.rerun()
+        st.markdown("---")
+    elif st.session_state.matrix_selected_generic_items: # If items are selected in matrix but not compiled yet
+        st.info("Click 'Compile Final List for Review' above after making all selections.")
+
+
+    # --- Step 4: Select Currency ---
+    st.header("Step 4: Select Currency")
     selected_currency = None 
     try:
         if not st.session_state.wholesale_prices_df.empty:
@@ -316,7 +387,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
         if st.session_state.selected_currency_session and st.session_state.selected_currency_session in currency_options:
             current_currency_idx = currency_options.index(st.session_state.selected_currency_session)
 
-        selected_currency_choice = st.selectbox("Select Currency:", options=currency_options, index=current_currency_idx, key="currency_selector_main")
+        selected_currency_choice = st.selectbox("Select Currency:", options=currency_options, index=current_currency_idx, key="currency_selector_main_final")
         
         if selected_currency_choice and selected_currency_choice != DEFAULT_NO_SELECTION:
             st.session_state.selected_currency_session = selected_currency_choice
@@ -335,111 +406,82 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
         selected_currency = None
 
 
-    # --- Step 3: Generate Master Data File ---
-    st.header("Step 3: Generate Master Data File")
-    if st.button("Generate Master Data File", key="generate_file_final_button"):
-        if not st.session_state.matrix_selected_generic_items: 
-            st.warning("Please select at least one product combination in Step 1.")
-        elif not selected_currency:
-            st.warning("Please select a currency in Step 3 before generating the file.")
-        else:
-            # Process selections to build final_items_for_download
-            st.session_state.final_items_for_download = [] 
-            for key, gen_item_data in st.session_state.matrix_selected_generic_items.items():
-                if not gen_item_data['requires_base_choice']:
-                    if gen_item_data.get('item_no_if_single_base') is not None: 
-                        st.session_state.final_items_for_download.append({
-                            "description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']}" + (f" / Base: {gen_item_data['resolved_base_if_single']}" if pd.notna(gen_item_data['resolved_base_if_single']) else ""),
-                            "item_no": gen_item_data['item_no_if_single_base'],
-                            "article_no": gen_item_data['article_no_if_single_base']
-                        })
-                else:
-                    selected_bases_for_this = st.session_state.user_chosen_base_colors_for_items.get(key, [])
-                    if not selected_bases_for_this:
-                        st.warning(f"No base color selected for {gen_item_data['product']} ({gen_item_data['upholstery_type']}/{gen_item_data['upholstery_color']}). This item will be skipped.")
-                        continue
-                    for bc in selected_bases_for_this:
-                        specific_item_df = st.session_state.raw_df[
-                            (st.session_state.raw_df['Product Family'] == gen_item_data['family']) &
-                            (st.session_state.raw_df['Product Display Name'] == gen_item_data['product']) &
-                            (st.session_state.raw_df['Upholstery Type'].fillna("N/A") == gen_item_data['upholstery_type']) &
-                            (st.session_state.raw_df['Upholstery Color'].astype(str).fillna("N/A") == gen_item_data['upholstery_color']) &
-                            (st.session_state.raw_df['Base Color Cleaned'].fillna("N/A") == bc)
-                        ]
-                        if not specific_item_df.empty:
-                            actual_item = specific_item_df.iloc[0]
-                            st.session_state.final_items_for_download.append({
-                                "description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']} / Base: {bc}",
-                                "item_no": actual_item['Item No'],
-                                "article_no": actual_item['Article No']
-                            })
-                        else:
-                            st.error(f"ERROR: Could not find item for {gen_item_data['product']} ({gen_item_data['upholstery_type']}/{gen_item_data['upholstery_color']}) with base {bc}. Check data.")
-            
-            final_list_unique = []
-            seen_item_nos_final = set()
-            for item in st.session_state.final_items_for_download:
-                if item['item_no'] not in seen_item_nos_final:
-                    final_list_unique.append(item)
-                    seen_item_nos_final.add(item['item_no'])
-            st.session_state.final_items_for_download = final_list_unique
-            
-            if st.session_state.final_items_for_download:
-                output_data = []
-                ws_price_col_name_dynamic = f"Wholesale price ({selected_currency})"
-                rt_price_col_name_dynamic = f"Retail price ({selected_currency})"
-                master_template_columns_final_output = []
-                for col in st.session_state.template_cols:
-                    if col.lower() == "wholesale price": master_template_columns_final_output.append(ws_price_col_name_dynamic)
-                    elif col.lower() == "retail price": master_template_columns_final_output.append(rt_price_col_name_dynamic)
-                    else: master_template_columns_final_output.append(col)
-                if "Wholesale price" in st.session_state.template_cols and ws_price_col_name_dynamic not in master_template_columns_final_output: master_template_columns_final_output.append(ws_price_col_name_dynamic)
-                if "Retail price" in st.session_state.template_cols and rt_price_col_name_dynamic not in master_template_columns_final_output: master_template_columns_final_output.append(rt_price_col_name_dynamic)
-                master_template_columns_final_output = [c for c in master_template_columns_final_output if c.lower() != "wholesale price" or c == ws_price_col_name_dynamic]
-                master_template_columns_final_output = [c for c in master_template_columns_final_output if c.lower() != "retail price" or c == rt_price_col_name_dynamic]
-                seen_cols = set(); unique_ordered_cols = []; 
-                for col in master_template_columns_final_output:
-                    if col not in seen_cols: unique_ordered_cols.append(col); seen_cols.add(col)
-                master_template_columns_final_output = unique_ordered_cols
+    # --- Step 5: Generate Master Data File ---
+    st.header("Step 5: Generate Master Data File")
+    
+    # This function will be called by the download button
+    def prepare_and_generate_excel_for_download_final():
+        if not st.session_state.final_items_for_download:
+            st.warning("No items confirmed for download. Please compile your list in Step 3.")
+            return None 
+        
+        if not st.session_state.selected_currency_session: # Check the session state variable
+            st.warning("Please select a currency in Step 4.")
+            return None 
 
-                for combo_selection in st.session_state.final_items_for_download: 
-                    item_no_to_find = combo_selection['item_no']; article_no_to_find = combo_selection['article_no'] 
-                    item_data_row_series_df = st.session_state.raw_df[st.session_state.raw_df['Item No'] == item_no_to_find]
-                    if not item_data_row_series_df.empty:
-                        item_data_row_series = item_data_row_series_df.iloc[0]; output_row_dict = {}
-                        for col_template in master_template_columns_final_output: 
-                            if col_template == ws_price_col_name_dynamic or col_template == rt_price_col_name_dynamic: continue 
-                            if col_template in item_data_row_series.index: output_row_dict[col_template] = item_data_row_series[col_template]
-                            else: output_row_dict[col_template] = None 
-                        if not st.session_state.wholesale_prices_df.empty:
-                            ws_price_row_df = st.session_state.wholesale_prices_df[st.session_state.wholesale_prices_df.iloc[:, 0].astype(str) == str(article_no_to_find)]
-                            if not ws_price_row_df.empty and selected_currency in ws_price_row_df.columns: output_row_dict[ws_price_col_name_dynamic] = ws_price_row_df.iloc[0][selected_currency] if pd.notna(ws_price_row_df.iloc[0][selected_currency]) else "N/A"
-                            else: output_row_dict[ws_price_col_name_dynamic] = "Price Not Found"
-                        else: output_row_dict[ws_price_col_name_dynamic] = "Wholesale Matrix Empty"
-                        if not st.session_state.retail_prices_df.empty:
-                            rt_price_row_df = st.session_state.retail_prices_df[st.session_state.retail_prices_df.iloc[:, 0].astype(str) == str(article_no_to_find)]
-                            if not rt_price_row_df.empty and selected_currency in rt_price_row_df.columns: output_row_dict[rt_price_col_name_dynamic] = rt_price_row_df.iloc[0][selected_currency] if pd.notna(rt_price_row_df.iloc[0][selected_currency]) else "N/A"
-                            else: output_row_dict[rt_price_col_name_dynamic] = "Price Not Found"
-                        else: output_row_dict[rt_price_col_name_dynamic] = "Retail Matrix Empty"
-                        output_data.append(output_row_dict)
-                    else: st.warning(f"Data for Item No: {item_no_to_find} not found.")
-                if output_data:
-                    output_df = pd.DataFrame(output_data, columns=master_template_columns_final_output) 
-                    output_excel_buffer = io.BytesIO()
-                    with pd.ExcelWriter(output_excel_buffer, engine='xlsxwriter') as writer: output_df.to_excel(writer, index=False, sheet_name='Masterdata Output')
-                    output_excel_buffer.seek(0)
-                    # Provide download button directly
-                    st.download_button(label="Download Master Data File Now", data=output_excel_buffer, file_name=f"masterdata_output_{selected_currency.replace(' ', '_').replace('.', '')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="direct_download_button_final_step")
-                    st.success("Master data file generated and ready for download!")
-                else: st.warning("No data to generate for the file.")
-            else: 
-                st.warning("No fully specified items to generate. Please complete selections in Step 1 & 2, then select a currency.")
-    # else: # No initial selections made
-        # This info message is removed as per user request
-        # if selected_family and selected_family != DEFAULT_NO_SELECTION:
-        #     pass # User has selected a family, but not yet any items in the matrix
-        # else:
-        #     st.info("Select items in Step 1 to enable file generation.")
+        output_data = []
+        current_selected_currency = st.session_state.selected_currency_session # Use the stored currency
+        ws_price_col_name_dynamic = f"Wholesale price ({current_selected_currency})"
+        rt_price_col_name_dynamic = f"Retail price ({current_selected_currency})"
+        master_template_columns_final_output = []
+        for col in st.session_state.template_cols:
+            if col.lower() == "wholesale price": master_template_columns_final_output.append(ws_price_col_name_dynamic)
+            elif col.lower() == "retail price": master_template_columns_final_output.append(rt_price_col_name_dynamic)
+            else: master_template_columns_final_output.append(col)
+        if "Wholesale price" in st.session_state.template_cols and ws_price_col_name_dynamic not in master_template_columns_final_output: master_template_columns_final_output.append(ws_price_col_name_dynamic)
+        if "Retail price" in st.session_state.template_cols and rt_price_col_name_dynamic not in master_template_columns_final_output: master_template_columns_final_output.append(rt_price_col_name_dynamic)
+        master_template_columns_final_output = [c for c in master_template_columns_final_output if c.lower() != "wholesale price" or c == ws_price_col_name_dynamic]
+        master_template_columns_final_output = [c for c in master_template_columns_final_output if c.lower() != "retail price" or c == rt_price_col_name_dynamic]
+        seen_cols = set(); unique_ordered_cols = []; 
+        for col in master_template_columns_final_output:
+            if col not in seen_cols: unique_ordered_cols.append(col); seen_cols.add(col)
+        master_template_columns_final_output = unique_ordered_cols
+
+        for combo_selection in st.session_state.final_items_for_download: 
+            item_no_to_find = combo_selection['item_no']; article_no_to_find = combo_selection['article_no'] 
+            item_data_row_series_df = st.session_state.raw_df[st.session_state.raw_df['Item No'] == item_no_to_find]
+            if not item_data_row_series_df.empty:
+                item_data_row_series = item_data_row_series_df.iloc[0]; output_row_dict = {}
+                for col_template in master_template_columns_final_output: 
+                    if col_template == ws_price_col_name_dynamic or col_template == rt_price_col_name_dynamic: continue 
+                    if col_template in item_data_row_series.index: output_row_dict[col_template] = item_data_row_series[col_template]
+                    else: output_row_dict[col_template] = None 
+                if not st.session_state.wholesale_prices_df.empty:
+                    ws_price_row_df = st.session_state.wholesale_prices_df[st.session_state.wholesale_prices_df.iloc[:, 0].astype(str) == str(article_no_to_find)]
+                    if not ws_price_row_df.empty and current_selected_currency in ws_price_row_df.columns: output_row_dict[ws_price_col_name_dynamic] = ws_price_row_df.iloc[0][current_selected_currency] if pd.notna(ws_price_row_df.iloc[0][current_selected_currency]) else "N/A"
+                    else: output_row_dict[ws_price_col_name_dynamic] = "Price Not Found"
+                else: output_row_dict[ws_price_col_name_dynamic] = "Wholesale Matrix Empty"
+                if not st.session_state.retail_prices_df.empty:
+                    rt_price_row_df = st.session_state.retail_prices_df[st.session_state.retail_prices_df.iloc[:, 0].astype(str) == str(article_no_to_find)]
+                    if not rt_price_row_df.empty and current_selected_currency in rt_price_row_df.columns: output_row_dict[rt_price_col_name_dynamic] = rt_price_row_df.iloc[0][current_selected_currency] if pd.notna(rt_price_row_df.iloc[0][current_selected_currency]) else "N/A"
+                    else: output_row_dict[rt_price_col_name_dynamic] = "Price Not Found"
+                else: output_row_dict[rt_price_col_name_dynamic] = "Retail Matrix Empty"
+                output_data.append(output_row_dict)
+            else: st.warning(f"Data for Item No: {item_no_to_find} not found.")
+        
+        if not output_data:
+            st.warning("No data to generate for the file after processing.")
+            return None
+
+        output_df = pd.DataFrame(output_data, columns=master_template_columns_final_output) 
+        output_excel_buffer = io.BytesIO()
+        with pd.ExcelWriter(output_excel_buffer, engine='xlsxwriter') as writer: output_df.to_excel(writer, index=False, sheet_name='Masterdata Output')
+        return output_excel_buffer.getvalue()
+
+    # The download button itself
+    if st.session_state.final_items_for_download and st.session_state.selected_currency_session:
+        st.download_button(
+            label="Generate and Download Master Data File",
+            data=prepare_and_generate_excel_for_download_final(), 
+            file_name=f"masterdata_output_{st.session_state.selected_currency_session.replace(' ', '_').replace('.', '')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="final_download_action_button_v2", # Ensure unique key
+            help="Click to generate and download your customized master data file."
+        )
+    elif not st.session_state.final_items_for_download:
+        st.warning("Please compile your selections in Step 3 first.")
+    elif not st.session_state.selected_currency_session:
+        st.warning("Please select a currency in Step 4 before generating the file.")
 
 
 else: 
