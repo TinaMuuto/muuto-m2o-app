@@ -56,14 +56,14 @@ Welcome to Muuto's Made-to-Order (MTO) Product Configurator!
 
 This tool simplifies selecting MTO products and generating the data you need for your systems. Here's how it works:
 
-**Select Product Family & Combinations:**
+* **Select Product Family & Combinations:**
     * Choose a product family to view its available products and upholstery options.
     * Select your desired product, upholstery, and color combinations directly in the matrix. You can easily switch product families to add more items to your overall selection.
-**Specify Base Colors (if applicable):**
+* **Specify Base Colors (if applicable):**
     * For items where multiple base colors are available, you can select one or more options using the multiselect feature.
-**Select Currency:**
+* **Select Currency:**
     * Choose your preferred currency for pricing.
-**Generate Master Data File:**
+* **Generate Master Data File:**
     * After making your selections and choosing a currency, generate and download an Excel file containing all master data for your selected items.
 """)
 
