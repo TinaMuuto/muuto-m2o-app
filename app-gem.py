@@ -273,7 +273,7 @@ if files_loaded_successfully:
                                             label_visibility="collapsed")
                             else:
                                 # Show nothing for unavailable combinations
-                                pass
+                                pass 
         else:
             if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"No data found for product family: {selected_family}")
 
@@ -580,7 +580,7 @@ st.markdown("""
         box-sizing: border-box;
     }
 
-    /* Container for checkbox or grey box within each matrix data cell */
+    /* Container for checkbox or unavailable cell content within each matrix data cell */
     div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] { 
         height: 30px !important; 
         min-height: 30px !important;
@@ -591,7 +591,8 @@ st.markdown("""
         margin: 0 !important;
         box-sizing: border-box;
     }
-    /* This ensures the stMarkdownContainer (when used for unavailable cells) also behaves for centering */
+    /* This ensures the stMarkdownContainer (when used for unavailable cells, now removed) also behaves for centering */
+    /* Keeping it in case grey boxes are re-introduced, but it won't affect empty cells */
     div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] > div[data-testid="stMarkdown"] > div[data-testid="stMarkdownContainer"] {
         display: flex !important;
         align-items: center !important;
@@ -733,17 +734,16 @@ st.markdown("""
     div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-eh,
     div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] /* Fallback */
      {
-        background-color: #5B4A14 !important; 
+        background-color: transparent !important; 
         background-image: none !important; 
+        border: 1px solid #000000 !important; /* Black border */
         border-radius: 0.25rem !important; 
-        padding-top: 0.2em !important; 
-        padding-bottom: 0.2em !important;
-        border: none !important; 
+        padding: 0.2em 0.4em !important; /* Adjusted padding */
         line-height: 1.2 !important; 
     }
     /* Text inside selected tag */
     div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[title] {
-        color: white !important;
+        color: #000000 !important; /* Black text */
         font-size: 0.85em !important;
         line-height: inherit !important; 
         margin-right: 4px !important; 
@@ -756,7 +756,7 @@ st.markdown("""
     }
     /* Close 'x' icon SVG in selected tag */
     div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] svg {
-        fill: white !important;
+        fill: #000000 !important; /* Black 'x' icon */
         width: 1em !important; 
         height: 1em !important;
         vertical-align: middle !important; 
