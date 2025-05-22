@@ -227,7 +227,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                     for i, col_widget in enumerate(cols_swatch_header):
                         if i == 0: 
                             with col_widget: 
-                                st.markdown("<div class='zoom-instruction'><br>(Click swatch in header to zoom)</div>", unsafe_allow_html=True)
+                                st.markdown("<div class='zoom-instruction'><br>(Click swatch to zoom)</div>", unsafe_allow_html=True)
                         else:
                             sw_url = data_column_map[i-1]['swatch']
                             with col_widget:
@@ -279,7 +279,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"No data found for product family: {selected_family}")
 
 
-    # --- Step 2: Select Base Colors ---
+    # --- Select Base Colors ---
     items_needing_base_choice_now = [
         item_data for key, item_data in st.session_state.matrix_selected_generic_items.items() if item_data.get('requires_base_choice')
     ]
