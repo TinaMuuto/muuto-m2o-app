@@ -6,8 +6,8 @@ import os
 # --- Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
 st.set_page_config(
     layout="wide",
-    page_title="Muuto M2O", # Updated page title
-    page_icon="favicon.png"  # Assumes favicon.png is in the same directory as the script
+    page_title="Muuto M2O", 
+    page_icon="favicon.png" 
 )
 
 # --- Configuration & Constants ---
@@ -15,7 +15,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RAW_DATA_XLSX_PATH = os.path.join(BASE_DIR, "raw-data.xlsx")
 PRICE_MATRIX_XLSX_PATH = os.path.join(BASE_DIR, "price-matrix_EUROPE.xlsx")
 MASTERDATA_TEMPLATE_XLSX_PATH = os.path.join(BASE_DIR, "Masterdata-output-template.xlsx")
-LOGO_PATH = os.path.join(BASE_DIR, "muuto_logo_logo.png") # Path for the main logo
+LOGO_PATH = os.path.join(BASE_DIR, "muuto_logo_logo.png") 
 
 RAW_DATA_APP_SHEET = "APP"
 PRICE_MATRIX_WHOLESALE_SHEET = "Price matrix wholesale"
@@ -47,7 +47,8 @@ with top_col2:
     if os.path.exists(LOGO_PATH):
         st.image(LOGO_PATH, width=120) 
     # else:
-    #     st.caption("Logo not found") 
+    #     st.sidebar.error(f"Logo not found at: {LOGO_PATH}. Ensure 'muuto_logo_logo.png' is in the script's directory.")
+
 
 # --- App Introduction ---
 st.markdown("""
@@ -97,7 +98,7 @@ if st.session_state.raw_df is None:
                 st.session_state.raw_df['Base Color Cleaned'] = st.session_state.raw_df['Base Color'].astype(str).str.strip().replace("N/A", pd.NA)
                 st.session_state.raw_df['Upholstery Type'] = st.session_state.raw_df['Upholstery Type'].astype(str).str.strip()
         except Exception as e: st.error(f"Error loading Raw Data: {e}"); files_loaded_successfully = False
-    else: st.error(f"Raw Data file not found: {RAW_DATA_XLSX_PATH}"); files_loaded_successfully = False
+    else: st.error(f"Raw Data file not found at: {RAW_DATA_XLSX_PATH}"); files_loaded_successfully = False
 
 if files_loaded_successfully and st.session_state.wholesale_prices_df is None:
     if os.path.exists(PRICE_MATRIX_XLSX_PATH):
@@ -231,8 +232,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                             with col_widget:
                                 if sw_url: 
                                     st.image(sw_url, width=30)
-                                    if i == 1: 
-                                        st.caption("<small>(Click to zoom)</small>", unsafe_allow_html=True)
+                                # Removed the (Click to zoom) from here
                                 else: 
                                     st.markdown("<div class='swatch-placeholder'></div>", unsafe_allow_html=True)
                     
@@ -244,6 +244,18 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                         else:
                             with col_widget: 
                                 st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
+                    
+                    # Add "(Click swatch to zoom)" instruction row
+                    if num_data_columns > 0:
+                        zoom_instr_cols = st.columns([2.5] + [1] * num_data_columns) # Match table structure
+                        with zoom_instr_cols[0]: # Empty space under "Product"
+                            pass 
+                        # Place the instruction aligned with the start of swatch columns or spanning a few
+                        with zoom_instr_cols[1]: # Align with the first swatch column
+                             st.markdown("<div style='font-size: 0.75em; color: #555; text-align: left; padding-top: 5px;'>(Click swatch in header to zoom)</div>", unsafe_allow_html=True)
+
+
+                    st.markdown("---") # Separator before product rows
 
                     for prod_name in products_in_family:
                         cols_product_row = st.columns([2.5] + [1] * num_data_columns)
@@ -493,22 +505,23 @@ st.markdown("""
     }
     /* Specifically target Upholstery Type headers for no-wrap */
     .upholstery-header {
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        white-space: normal !important; /* Allow wrapping */
+        overflow: visible !important; /* Allow overflow if needed, or adjust height */
+        text-overflow: clip !important; /* Remove ellipsis */
         display: block; 
         max-width: 100%; 
+        line-height: 1.3; /* Adjust line height for wrapped text */
     }
     div[data-testid="stCaptionContainer"] img { /* Swatch in header */
         max-height: 25px !important; 
         width: 25px !important;    
-        object-fit: cover;         
+        object-fit: cover !important; /* Enforce square and cover */       
         margin-right: 3px; 
     }
     /* Placeholder for empty swatch in header */
     .swatch-placeholder {
-        width:25px; 
-        height:25px;
+        width:25px !important; 
+        height:25px !important;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -528,13 +541,11 @@ st.markdown("""
     }
     
     /* Custom styling for the checkbox itself when checked */
-    /* Targeting the visual square of the checkbox */
-    div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div div[data-testid="stTickSquare"] {
+    div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div[data-testid="stTickBar"] > div[data-testid="stTickSquare"] {
         background-color: #5B4A14 !important; 
         border-color: #5B4A14 !important; 
     }
-    /* Targeting the checkmark SVG */
-    div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div div[data-testid="stTickSquare"] svg {
+    div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div[data-testid="stTickBar"] > div[data-testid="stTickSquare"] svg {
         fill: white !important; 
     }
 
@@ -545,15 +556,20 @@ st.markdown("""
         border-top: 1px solid #e2e8f0; 
     } 
     /* Button styling for hover and active states */
+    .stButton>button { /* Default button state */
+        border-color: #5B4A14 !important; 
+        color: #5B4A14 !important; 
+        background-color: #FFFFFF !important; 
+    }
     .stButton>button:hover {
         border-color: #5B4A14 !important;
-        color: #5B4A14 !important;
-        background-color: #f0f0f0 !important; 
+        color: white !important; 
+        background-color: #5B4A14 !important; 
     }
     .stButton>button:active, .stButton>button:focus { 
         border-color: #5B4A14 !important;
-        color: #5B4A14 !important;
-        background-color: #e0e0e0 !important; 
+        color: white !important; 
+        background-color: #4A3D10 !important; 
         box-shadow: 0 0 0 0.2rem rgba(91, 74, 20, 0.5) !important; 
         outline: none !important; 
     }
