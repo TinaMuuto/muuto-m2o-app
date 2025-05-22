@@ -188,27 +188,36 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                     current_uph_type_header_display = None 
                     for i, col_widget in enumerate(cols_uph_type_header):
                         if i == 0:
-                            with col_widget: st.caption("") 
+                            with col_widget: 
+                                st.caption("") 
                         else:
                             map_entry = data_column_map[i-1]
                             if map_entry['uph_type'] != current_uph_type_header_display:
-                                with col_widget: st.caption(f"**{map_entry['uph_type']}**")
+                                with col_widget: 
+                                    st.caption(f"**{map_entry['uph_type']}**")
                                 current_uph_type_header_display = map_entry['uph_type']
                             
                     cols_swatch_header = st.columns([2.5] + [1] * num_data_columns)
                     for i, col_widget in enumerate(cols_swatch_header):
-                        if i == 0: with col_widget: st.caption("")
+                        if i == 0: 
+                            with col_widget: 
+                                st.caption("")
                         else:
                             sw_url = data_column_map[i-1]['swatch']
                             with col_widget:
-                                if sw_url: st.image(sw_url, width=30)
-                                else: st.markdown("<div style='height:30px; width:30px;'></div>", unsafe_allow_html=True)
+                                if sw_url: 
+                                    st.image(sw_url, width=30)
+                                else: 
+                                    st.markdown("<div style='height:30px; width:30px;'></div>", unsafe_allow_html=True)
                     
                     cols_color_num_header = st.columns([2.5] + [1] * num_data_columns)
                     for i, col_widget in enumerate(cols_color_num_header):
-                        if i == 0: with col_widget: st.caption("")
+                        if i == 0: 
+                            with col_widget: 
+                                st.caption("")
                         else:
-                            with col_widget: st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
+                            with col_widget: 
+                                st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
                     st.markdown("---")
 
                     for prod_name in products_in_family:
@@ -347,18 +356,14 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                 else:
                     master_template_columns_final_output.append(col)
             
-            # Ensure dynamic price columns are present if original placeholders were used
             if "Wholesale price" in st.session_state.template_cols and ws_price_col_name_dynamic not in master_template_columns_final_output:
-                # This implies "Wholesale price" was a placeholder that wasn't replaced by exact match. Add dynamic.
                 master_template_columns_final_output.append(ws_price_col_name_dynamic)
             if "Retail price" in st.session_state.template_cols and rt_price_col_name_dynamic not in master_template_columns_final_output:
                 master_template_columns_final_output.append(rt_price_col_name_dynamic)
 
-            # Remove original generic price column names if they are different from dynamic ones and still exist
             master_template_columns_final_output = [c for c in master_template_columns_final_output if c.lower() != "wholesale price" or c == ws_price_col_name_dynamic]
             master_template_columns_final_output = [c for c in master_template_columns_final_output if c.lower() != "retail price" or c == rt_price_col_name_dynamic]
             
-            # Ensure uniqueness while trying to preserve order (important if template had duplicates)
             seen_cols = set()
             unique_ordered_cols = []
             for col in master_template_columns_final_output:
@@ -377,13 +382,12 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                     output_row_dict = {}
                     for col_template in master_template_columns_final_output: 
                         if col_template == ws_price_col_name_dynamic or col_template == rt_price_col_name_dynamic:
-                            continue # Prices will be added specifically
+                            continue 
                         if col_template in item_data_row_series.index: 
                             output_row_dict[col_template] = item_data_row_series[col_template]
                         else: 
                             output_row_dict[col_template] = None 
                     
-                    # Add dynamically named price columns
                     if not st.session_state.wholesale_prices_df.empty:
                         ws_price_row_df = st.session_state.wholesale_prices_df[st.session_state.wholesale_prices_df.iloc[:, 0].astype(str) == str(article_no_to_find)]
                         if not ws_price_row_df.empty and selected_currency in ws_price_row_df.columns:
@@ -411,9 +415,8 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
     
     elif not st.session_state.matrix_selected_generic_items and not st.session_state.final_items_for_download:
         if selected_family and selected_family != DEFAULT_NO_SELECTION:
-            pass # User has selected a family, but not yet any items in the matrix
-        # else: # No family selected, and no items. No specific message needed here now.
-        #    pass
+            pass
+        pass
 
 
 else: 
