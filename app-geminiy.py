@@ -38,6 +38,7 @@ if 'retail_prices_df' not in st.session_state: st.session_state.retail_prices_df
 if 'template_cols' not in st.session_state: st.session_state.template_cols = None
 if 'search_query_session' not in st.session_state: st.session_state.search_query_session = ""
 if 'selected_family_session' not in st.session_state: st.session_state.selected_family_session = None
+if 'selected_upholstery_type_session' not in st.session_state: st.session_state.selected_upholstery_type_session = None # New session state for upholstery type
 if 'selected_items_for_download' not in st.session_state: st.session_state.selected_items_for_download = []
 
 # --- Load Data Directly from XLSX files ---
@@ -60,7 +61,7 @@ if st.session_state.raw_df is None:
     if os.path.exists(RAW_DATA_XLSX_PATH):
         try:
             st.session_state.raw_df = pd.read_excel(RAW_DATA_XLSX_PATH, sheet_name=RAW_DATA_APP_SHEET)
-            required_initial_cols = ['Product Type', 'Product Model', 'Sofa Direction', 'Base Color', 'Product Family', 'Item No', 'Article No', 'Image URL swatch', 'Upholstery Type', 'Upholstery Color'] # Base Color still needed for internal logic if we re-add it
+            required_initial_cols = ['Product Type', 'Product Model', 'Sofa Direction', 'Base Color', 'Product Family', 'Item No', 'Article No', 'Image URL swatch', 'Upholstery Type', 'Upholstery Color']
             missing_initial = [col for col in required_initial_cols if col not in st.session_state.raw_df.columns]
             
             if 'Market' not in st.session_state.raw_df.columns:
@@ -74,8 +75,6 @@ if st.session_state.raw_df is None:
                 files_loaded_successfully = False
             else:
                 st.session_state.raw_df['Product Display Name'] = st.session_state.raw_df.apply(construct_product_display_name, axis=1)
-                # Base Color Cleaned might still be useful if we re-introduce base color logic later.
-                # For now, it's not directly used in the simplified table display.
                 st.session_state.raw_df['Base Color Cleaned'] = st.session_state.raw_df['Base Color'].astype(str).str.strip().replace("N/A", pd.NA)
         except Exception as e:
             st.error(f"Error loading Raw Data from '{os.path.basename(RAW_DATA_XLSX_PATH)}' (Sheet: {RAW_DATA_APP_SHEET}): {e}"); files_loaded_successfully = False
@@ -137,15 +136,41 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
              st.info(f"Ingen produkter fundet for søgningen: '{search_query}'")
 
     available_families_in_view = [DEFAULT_NO_SELECTION] + sorted(df_for_display['Product Family'].dropna().unique()) if 'Product Family' in df_for_display.columns else [DEFAULT_NO_SELECTION]
-    if st.session_state.selected_family_session not in available_families_in_view: st.session_state.selected_family_session = DEFAULT_NO_SELECTION
+    if st.session_state.selected_family_session not in available_families_in_view: 
+        st.session_state.selected_family_session = DEFAULT_NO_SELECTION
+        st.session_state.selected_upholstery_type_session = None # Reset upholstery if family changes
     
     selected_family_idx = 0
     if st.session_state.selected_family_session in available_families_in_view:
         selected_family_idx = available_families_in_view.index(st.session_state.selected_family_session)
         
-    selected_family = st.selectbox("Vælg Produkt Familie (filtrerer nuværende visning):", options=available_families_in_view, index=selected_family_idx, key="family_selector_main")
+    selected_family = st.selectbox("Vælg Produkt Familie:", options=available_families_in_view, index=selected_family_idx, key="family_selector_main")
+    if selected_family != st.session_state.selected_family_session: # If family changed, reset upholstery
+        st.session_state.selected_upholstery_type_session = None
     st.session_state.selected_family_session = selected_family
+    
 
+    # --- Upholstery Type Selection ---
+    selected_upholstery_type = None
+    if selected_family and selected_family != DEFAULT_NO_SELECTION and 'Upholstery Type' in df_for_display.columns:
+        family_specific_df_for_upholstery = df_for_display[df_for_display['Product Family'] == selected_family]
+        available_upholstery_types = [DEFAULT_NO_SELECTION] + sorted(family_specific_df_for_upholstery['Upholstery Type'].dropna().unique())
+        
+        if st.session_state.selected_upholstery_type_session not in available_upholstery_types:
+            st.session_state.selected_upholstery_type_session = DEFAULT_NO_SELECTION
+
+        upholstery_type_idx = 0
+        if st.session_state.selected_upholstery_type_session in available_upholstery_types:
+            upholstery_type_idx = available_upholstery_types.index(st.session_state.selected_upholstery_type_session)
+
+        selected_upholstery_type = st.selectbox(
+            "Vælg Tekstil Familie (Upholstery Type):", 
+            options=available_upholstery_types, 
+            index=upholstery_type_idx,
+            key="upholstery_type_selector"
+        )
+        st.session_state.selected_upholstery_type_session = selected_upholstery_type
+    
     # Callback for checkbox changes
     def handle_item_checkbox_toggle(item_details_dict, checkbox_key):
         is_checked_now = st.session_state[checkbox_key]
@@ -162,113 +187,104 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                 ]
                 st.toast(f"Fjernet: {item_details_dict['item_no']}", icon="❌")
 
-    if selected_family and selected_family != DEFAULT_NO_SELECTION and 'Product Family' in df_for_display.columns:
-        family_specific_df = df_for_display[df_for_display['Product Family'] == selected_family]
+    # --- Display Product Table ---
+    if selected_family and selected_family != DEFAULT_NO_SELECTION and \
+       selected_upholstery_type and selected_upholstery_type != DEFAULT_NO_SELECTION and \
+       'Product Family' in df_for_display.columns:
+        
+        # Filter by selected product family AND upholstery type
+        table_df = df_for_display[
+            (df_for_display['Product Family'] == selected_family) &
+            (df_for_display['Upholstery Type'].fillna("N/A_Type").astype(str) == selected_upholstery_type)
+        ]
 
-        if not family_specific_df.empty and 'Product Display Name' in family_specific_df.columns and \
-           'Upholstery Type' in family_specific_df.columns and 'Upholstery Color' in family_specific_df.columns:
+        if not table_df.empty and 'Product Display Name' in table_df.columns and \
+           'Upholstery Color' in table_df.columns:
             
-            unique_products = sorted(family_specific_df['Product Display Name'].dropna().unique())
+            unique_products_table = sorted(table_df['Product Display Name'].dropna().unique())
             
-            # Determine textile/color combinations ONLY from the selected family_specific_df
-            textile_color_combos_df = family_specific_df[['Upholstery Type', 'Upholstery Color']].drop_duplicates().copy()
-            textile_color_combos_df['Upholstery Type'] = textile_color_combos_df['Upholstery Type'].fillna("N/A_Type")
-            textile_color_combos_df['Upholstery Color'] = textile_color_combos_df['Upholstery Color'].fillna("N/A_Color")
-            textile_color_combos_df['Combined Header'] = textile_color_combos_df['Upholstery Type'].astype(str) + " - " + textile_color_combos_df['Upholstery Color'].astype(str)
-            sorted_textile_color_headers = sorted(textile_color_combos_df['Combined Header'].unique())
+            # Determine color columns ONLY from the filtered table_df (selected family AND upholstery type)
+            color_combos_df = table_df[['Upholstery Color']].drop_duplicates().copy() # Only Color now
+            color_combos_df['Upholstery Color'] = color_combos_df['Upholstery Color'].fillna("N/A_Color")
+            # Headers will be just the color names/codes
+            sorted_color_headers = sorted(color_combos_df['Upholstery Color'].astype(str).unique())
             
-            if not unique_products:
-                st.info(f"Ingen produkter fundet for familien: {selected_family}")
-            elif not sorted_textile_color_headers:
-                st.info(f"Ingen tekstil/farve kombinationer fundet for den valgte familie: {selected_family}")
+            if not unique_products_table:
+                st.info(f"Ingen produkter fundet for '{selected_family}' med tekstil '{selected_upholstery_type}'.")
+            elif not sorted_color_headers:
+                st.info(f"Ingen farver fundet for '{selected_upholstery_type}' i familien '{selected_family}'.")
             else:
-                num_data_cols = len(sorted_textile_color_headers)
-                # Adjusted column widths: Wider product column, slightly narrower textile/color columns
-                col_widths = [3.0] + [1.5] * num_data_cols # Increased product column width further
+                num_color_cols = len(sorted_color_headers)
+                col_widths_table = [3.0] + [1.0] * num_color_cols # Product name col, then color cols
                 
-                header_row = st.columns(col_widths)
-                with header_row[0]:
-                    st.caption("**Produkt**")
-                for i, header_text in enumerate(sorted_textile_color_headers):
-                    with header_row[i+1]:
-                        # Make header text wrap and display swatch
-                        uph_type_h, uph_color_h = header_text.split(" - ", 1)
-                        # Find a representative swatch for this header (first one found in the family for this combo)
-                        representative_swatch_series = family_specific_df[
-                            (family_specific_df['Upholstery Type'].fillna("N/A_Type").astype(str) == uph_type_h) &
-                            (family_specific_df['Upholstery Color'].fillna("N/A_Color").astype(str) == uph_color_h)
+                header_row_table = st.columns(col_widths_table)
+                with header_row_table[0]:
+                    st.caption(f"**Produkt ({selected_upholstery_type})**") # Indicate selected upholstery
+                for i, color_header_text in enumerate(sorted_color_headers):
+                    with header_row_table[i+1]:
+                        # Find a representative swatch for this color within the current Upholstery Type and Family
+                        rep_swatch_series_color = table_df[
+                            table_df['Upholstery Color'].fillna("N/A_Color").astype(str) == color_header_text
                         ]['Image URL swatch'].dropna()
                         
-                        # Display swatch and text in the header cell
-                        header_cell_cols = st.columns([0.4, 1]) # Swatch, Text
-                        with header_cell_cols[0]:
-                             if not representative_swatch_series.empty and pd.notna(representative_swatch_series.iloc[0]):
-                                st.image(representative_swatch_series.iloc[0], width=25)
-                             else: # Placeholder if no swatch
-                                st.markdown("<div style='width:25px; height:25px; font-size:0.5em; border:1px solid #ddd;'></div>", unsafe_allow_html=True)
-                        with header_cell_cols[1]:
-                            st.caption(f"**{header_text}**")
-
-
+                        header_cell_content_cols = st.columns([0.4, 1])
+                        with header_cell_content_cols[0]:
+                            if not rep_swatch_series_color.empty and pd.notna(rep_swatch_series_color.iloc[0]):
+                                st.image(rep_swatch_series_color.iloc[0], width=25)
+                            else:
+                                st.markdown("<div style='width:25px; height:25px;'></div>", unsafe_allow_html=True)
+                        with header_cell_content_cols[1]:
+                            st.caption(f"**{color_header_text}**")
                 st.markdown("---")
 
-                for product_name_iter in unique_products:
-                    product_row = st.columns(col_widths)
-                    with product_row[0]:
-                        st.markdown(f"**{product_name_iter}**")
+                for product_name_table_iter in unique_products_table:
+                    product_row_table = st.columns(col_widths_table)
+                    with product_row_table[0]:
+                        st.markdown(f"**{product_name_table_iter}**")
 
-                    product_df_current_row = family_specific_df[family_specific_df['Product Display Name'] == product_name_iter]
+                    product_df_current_row_table = table_df[table_df['Product Display Name'] == product_name_table_iter]
 
-                    for i, combined_header_text in enumerate(sorted_textile_color_headers):
-                        try:
-                            uph_type_col_header, uph_color_col_header = combined_header_text.split(" - ", 1)
-                            uph_type_filter = uph_type_col_header if uph_type_col_header != "N/A_Type" else pd.NA
-                            uph_color_filter = uph_color_col_header if uph_color_col_header != "N/A_Color" else pd.NA
-                        except ValueError:
-                            st.error(f"Fejl i header dekonstruktion: {combined_header_text}")
-                            continue
-                        
-                        with product_row[i+1]:
-                            if pd.isna(uph_type_filter): type_condition = product_df_current_row['Upholstery Type'].isna()
-                            else: type_condition = (product_df_current_row['Upholstery Type'].astype(str) == str(uph_type_filter))
+                    for i, color_col_header_text in enumerate(sorted_color_headers):
+                        with product_row_table[i+1]:
+                            color_filter_table = color_col_header_text if color_col_header_text != "N/A_Color" else pd.NA
                             
-                            if pd.isna(uph_color_filter): color_condition = product_df_current_row['Upholstery Color'].isna()
-                            else: color_condition = (product_df_current_row['Upholstery Color'].astype(str) == str(uph_color_filter))
+                            if pd.isna(color_filter_table): color_cond_table = product_df_current_row_table['Upholstery Color'].isna()
+                            else: color_cond_table = (product_df_current_row_table['Upholstery Color'].astype(str) == str(color_filter_table))
+                            
+                            # Items matching Product + selected Upholstery Type + current Color column
+                            cell_items_table_df = product_df_current_row_table[color_cond_table]
 
-                            cell_items_df = product_df_current_row[type_condition & color_condition]
-
-                            if cell_items_df.empty:
+                            if cell_items_table_df.empty:
                                 st.markdown("<div style='height: 50px; display:flex; align-items:center; justify-content:center;'>-</div>", unsafe_allow_html=True)
                             else:
-                                first_item_in_cell = cell_items_df.iloc[0]
-                                item_no_cell = first_item_in_cell['Item No']
-                                article_no_cell = first_item_in_cell['Article No']
-                                base_color_for_desc = str(first_item_in_cell.get('Base Color', "N/A")) 
-                                # Swatch is now part of the column header, not repeated in cell unless desired
-                                # swatch_url_cell = first_item_in_cell.get('Image URL swatch')
+                                # In this simplified model, we assume one item per Product/UpholsteryType/Color combo,
+                                # or we pick the first if multiple (due to base color differences now ignored for selection)
+                                first_item_in_cell_table = cell_items_table_df.iloc[0]
+                                item_no_cell_table = first_item_in_cell_table['Item No']
+                                article_no_cell_table = first_item_in_cell_table['Article No']
+                                base_color_for_desc_table = str(first_item_in_cell_table.get('Base Color', "N/A"))
 
-                                desc_parts_cell = [selected_family, product_name_iter, uph_type_col_header, uph_color_col_header]
-                                full_desc_cell = " / ".join(map(str, desc_parts_cell)) 
+                                desc_parts_cell_table = [selected_family, product_name_table_iter, selected_upholstery_type, color_col_header_text]
+                                full_desc_cell_table = " / ".join(map(str, desc_parts_cell_table)) 
 
-                                item_data_for_cb_cell = {
-                                    "description": full_desc_cell, "item_no": item_no_cell, "article_no": article_no_cell,
-                                    "family": selected_family, "product": product_name_iter,
-                                    "textile_family": uph_type_col_header, "textile_color": uph_color_col_header,
-                                    "base_color": base_color_for_desc 
+                                item_data_for_cb_cell_table = {
+                                    "description": full_desc_cell_table, "item_no": item_no_cell_table, "article_no": article_no_cell_table,
+                                    "family": selected_family, "product": product_name_table_iter,
+                                    "textile_family": selected_upholstery_type, "textile_color": color_col_header_text,
+                                    "base_color": base_color_for_desc_table 
                                 }
-                                is_selected_cell = any(sel['item_no'] == item_no_cell for sel in st.session_state.selected_items_for_download)
+                                is_selected_cell_table = any(sel['item_no'] == item_no_cell_table for sel in st.session_state.selected_items_for_download)
 
                                 with st.container():
-                                    # Cell now only needs the checkbox
-                                    # The swatch is in the header. If multiple items per cell (due to base color diff), this simplified model picks the first.
-                                    st.checkbox(" ", value=is_selected_cell, key=f"cb_cell_{item_no_cell}_{product_name_iter}_{i}", 
-                                                on_change=handle_item_checkbox_toggle, args=(item_data_for_cb_cell, f"cb_cell_{item_no_cell}_{product_name_iter}_{i}"),
+                                    st.checkbox(" ", value=is_selected_cell_table, key=f"cb_table_{item_no_cell_table}", 
+                                                on_change=handle_item_checkbox_toggle, args=(item_data_for_cb_cell_table, f"cb_table_{item_no_cell_table}"),
                                                 label_visibility="collapsed")
-                                    # Optionally, show Item No subtly if needed for user reference
-                                    # st.markdown(f"<small><i>({item_no_cell})</i></small>", unsafe_allow_html=True)
                     st.markdown("---") 
-        elif 'Product Display Name' not in family_specific_df.columns and not family_specific_df.empty:
+        elif selected_family and selected_family != DEFAULT_NO_SELECTION and not (selected_upholstery_type and selected_upholstery_type != DEFAULT_NO_SELECTION):
+            st.info("Vælg venligst en Tekstil Familie for at se produkter og farver.")
+        elif 'Product Display Name' not in family_specific_df.columns and not family_specific_df.empty :
              st.warning("Nødvendig kolonne 'Product Display Name' mangler for at vise tabel.")
+
     elif not files_loaded_successfully:
         pass 
     elif 'Product Family' not in st.session_state.raw_df.columns : 
@@ -365,22 +381,22 @@ st.markdown("""
     /* Styling for table headers (captions) */
     div[data-testid="stCaptionContainer"] > div > p { 
         font-weight: bold; 
-        font-size: 0.75em !important; /* Smaller caption for table headers */
+        font-size: 0.75em !important; 
         color: #4A5568 !important; 
         padding-bottom: 1px;
         text-align: center; 
         white-space: normal; 
         overflow-wrap: break-word; 
-        line-height: 1.1; /* Tighter line height for headers */
-        display: flex; /* For aligning swatch and text */
+        line-height: 1.1; 
+        display: flex; 
         align-items: center;
         justify-content: center;
-        min-height: 40px; /* Ensure header cells have some height */
+        min-height: 40px; 
     }
     /* Swatch in header */
     div[data-testid="stCaptionContainer"] img {
-        max-height: 25px !important; /* Smaller swatch in header */
-        margin-right: 5px; /* Space between swatch and text in header */
+        max-height: 25px !important; 
+        margin-right: 5px; 
     }
 
     div[data-testid="stImage"] img { 
@@ -394,9 +410,9 @@ st.markdown("""
     /* Product name column styling */
     div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div:first-child > div[data-testid="stMarkdownContainer"] {
          align-items: flex-start !important; 
-         padding-top: 10px; /* More padding for product name */
+         padding-top: 10px; 
          padding-left: 5px;
-         font-size: 0.9em; /* Slightly larger font for product name */
+         font-size: 0.9em; 
          justify-content: flex-start !important;
          text-align: left !important;
     }
@@ -406,12 +422,12 @@ st.markdown("""
         align-items: center; 
         justify-content: center; 
         height: auto; 
-        min-height: 45px; /* Min height for data cells */
+        min-height: 45px; 
         padding: 1px; 
         border-left: 1px solid #f0f0f0; 
     }
      div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div:first-child > div[data-testid="stMarkdownContainer"] {
-        border-left: none; /* No left border for the first (product name) column */
+        border-left: none; 
     }
 
     hr { margin-top: 0.1rem; margin-bottom: 0.1rem; border-top: 1px solid #e2e8f0; } 
