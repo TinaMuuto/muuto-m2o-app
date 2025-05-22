@@ -5,10 +5,15 @@ import os
 
 # --- Configuration & Constants ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-RAW_DATA_CSV_PATH = os.path.join(BASE_DIR, "raw-data.xlsx - APP.csv")
-PRICE_MATRIX_WHOLESALE_CSV_PATH = os.path.join(BASE_DIR, "price-matrix_EUROPE.xlsx - Price matrix wholesale.csv")
-PRICE_MATRIX_RETAIL_CSV_PATH = os.path.join(BASE_DIR, "price-matrix_EUROPE.xlsx - Price matrix retail.csv")
-MASTERDATA_TEMPLATE_CSV_PATH = os.path.join(BASE_DIR, "Masterdata-output-template.xlsx - masterdata.csv")
+# Reverted to expect .xlsx files and specific sheet names
+RAW_DATA_XLSX_PATH = os.path.join(BASE_DIR, "raw-data.xlsx")
+PRICE_MATRIX_XLSX_PATH = os.path.join(BASE_DIR, "price-matrix_EUROPE.xlsx")
+MASTERDATA_TEMPLATE_XLSX_PATH = os.path.join(BASE_DIR, "Masterdata-output-template.xlsx")
+
+# Specific sheet names for Excel files
+RAW_DATA_APP_SHEET = "APP"
+PRICE_MATRIX_WHOLESALE_SHEET = "Price matrix wholesale"
+PRICE_MATRIX_RETAIL_SHEET = "Price matrix retail"
 
 DEFAULT_NO_SELECTION = "--- Please Select ---"
 
@@ -37,7 +42,7 @@ if 'search_query_session' not in st.session_state: st.session_state.search_query
 if 'selected_family_session' not in st.session_state: st.session_state.selected_family_session = None
 if 'selected_items_for_download' not in st.session_state: st.session_state.selected_items_for_download = []
 
-# --- Load Data Directly from CSV files ---
+# --- Load Data Directly from XLSX files ---
 files_loaded_successfully = True
 st.sidebar.subheader("Diagnostik for Filindlæsning:")
 st.sidebar.write(f"Forventet script-mappe (BASE_DIR): `{BASE_DIR}`")
@@ -54,59 +59,62 @@ except Exception as e_listdir:
 
 
 if st.session_state.raw_df is None:
-    if os.path.exists(RAW_DATA_CSV_PATH):
+    if os.path.exists(RAW_DATA_XLSX_PATH):
         try:
-            st.session_state.raw_df = pd.read_csv(RAW_DATA_CSV_PATH)
+            st.session_state.raw_df = pd.read_excel(RAW_DATA_XLSX_PATH, sheet_name=RAW_DATA_APP_SHEET)
             required_initial_cols = ['Product Type', 'Product Model', 'Sofa Direction', 'Base Color', 'Product Family', 'Item No', 'Article No', 'Image URL swatch', 'Upholstery Type', 'Upholstery Color']
             missing_initial = [col for col in required_initial_cols if col not in st.session_state.raw_df.columns]
             
             if 'Market' not in st.session_state.raw_df.columns:
                 st.warning("Kolonnen 'Market' blev ikke fundet i rådata. UK-filtrering springes over.")
             else:
-                # Filter out UK market - case insensitive for 'UK'
                 st.session_state.raw_df = st.session_state.raw_df[st.session_state.raw_df['Market'].astype(str).str.upper() != 'UK']
                 st.info("Rådata er filtreret for at ekskludere 'UK' markedet.")
 
             if missing_initial:
-                st.error(f"Nødvendige kolonner mangler i '{os.path.basename(RAW_DATA_CSV_PATH)}': {missing_initial}. Kan ikke fortsætte indlæsning.")
+                st.error(f"Nødvendige kolonner mangler i '{os.path.basename(RAW_DATA_XLSX_PATH)}' (Ark: {RAW_DATA_APP_SHEET}): {missing_initial}. Kan ikke fortsætte indlæsning.")
                 files_loaded_successfully = False
             else:
                 st.session_state.raw_df['Product Display Name'] = st.session_state.raw_df.apply(construct_product_display_name, axis=1)
                 st.session_state.raw_df['Base Color Cleaned'] = st.session_state.raw_df['Base Color'].astype(str).str.strip().replace("N/A", pd.NA)
         except Exception as e:
-            st.error(f"Error loading Raw Data from CSV '{os.path.basename(RAW_DATA_CSV_PATH)}': {e}"); files_loaded_successfully = False
+            st.error(f"Error loading Raw Data from '{os.path.basename(RAW_DATA_XLSX_PATH)}' (Sheet: {RAW_DATA_APP_SHEET}): {e}"); files_loaded_successfully = False
     else: 
-        st.error(f"Raw Data CSV file not found at: {RAW_DATA_CSV_PATH}")
+        st.error(f"Raw Data Excel file not found at: {RAW_DATA_XLSX_PATH}")
         files_loaded_successfully = False
 
 if files_loaded_successfully and st.session_state.wholesale_prices_df is None :
-    if os.path.exists(PRICE_MATRIX_WHOLESALE_CSV_PATH):
+    if os.path.exists(PRICE_MATRIX_XLSX_PATH):
         try:
-            st.session_state.wholesale_prices_df = pd.read_csv(PRICE_MATRIX_WHOLESALE_CSV_PATH)
-        except Exception as e: st.error(f"Error loading Wholesale Price Matrix from CSV '{os.path.basename(PRICE_MATRIX_WHOLESALE_CSV_PATH)}': {e}"); files_loaded_successfully = False
+            st.session_state.wholesale_prices_df = pd.read_excel(PRICE_MATRIX_XLSX_PATH, sheet_name=PRICE_MATRIX_WHOLESALE_SHEET)
+        except Exception as e: st.error(f"Error loading Wholesale Price Matrix from '{os.path.basename(PRICE_MATRIX_XLSX_PATH)}' (Sheet: {PRICE_MATRIX_WHOLESALE_SHEET}): {e}"); files_loaded_successfully = False
     else: 
-        st.error(f"Wholesale Price Matrix CSV file not found: {PRICE_MATRIX_WHOLESALE_CSV_PATH}")
+        st.error(f"Price Matrix Excel file not found: {PRICE_MATRIX_XLSX_PATH}")
         files_loaded_successfully = False
 
 if files_loaded_successfully and st.session_state.retail_prices_df is None :
-    if os.path.exists(PRICE_MATRIX_RETAIL_CSV_PATH):
+    if os.path.exists(PRICE_MATRIX_XLSX_PATH): # Same Excel file, different sheet
         try:
-            st.session_state.retail_prices_df = pd.read_csv(PRICE_MATRIX_RETAIL_CSV_PATH)
-        except Exception as e: st.error(f"Error loading Retail Price Matrix from CSV '{os.path.basename(PRICE_MATRIX_RETAIL_CSV_PATH)}': {e}"); files_loaded_successfully = False
+            st.session_state.retail_prices_df = pd.read_excel(PRICE_MATRIX_XLSX_PATH, sheet_name=PRICE_MATRIX_RETAIL_SHEET)
+        except Exception as e: st.error(f"Error loading Retail Price Matrix from '{os.path.basename(PRICE_MATRIX_XLSX_PATH)}' (Sheet: {PRICE_MATRIX_RETAIL_SHEET}): {e}"); files_loaded_successfully = False
     else: 
-        st.error(f"Retail Price Matrix CSV file not found: {PRICE_MATRIX_RETAIL_CSV_PATH}")
+        # This error might be redundant if the file itself was not found for wholesale
+        if os.path.exists(PRICE_MATRIX_XLSX_PATH): # Check if file exists but sheet might be the issue
+             st.error(f"Price Matrix Excel file found, but error loading sheet: {PRICE_MATRIX_RETAIL_SHEET}")
+        # If the file wasn't found for wholesale, that error is already shown.
         files_loaded_successfully = False
 
+
 if files_loaded_successfully and st.session_state.template_cols is None:
-    if os.path.exists(MASTERDATA_TEMPLATE_CSV_PATH):
+    if os.path.exists(MASTERDATA_TEMPLATE_XLSX_PATH):
         try:
-            template_df = pd.read_csv(MASTERDATA_TEMPLATE_CSV_PATH)
+            template_df = pd.read_excel(MASTERDATA_TEMPLATE_XLSX_PATH) # Reads the first sheet by default
             st.session_state.template_cols = template_df.columns.tolist()
             if "Wholesale price" not in st.session_state.template_cols: st.session_state.template_cols.append("Wholesale price")
             if "Retail price" not in st.session_state.template_cols: st.session_state.template_cols.append("Retail price")
-        except Exception as e: st.error(f"Error loading Masterdata Template from CSV '{os.path.basename(MASTERDATA_TEMPLATE_CSV_PATH)}': {e}"); files_loaded_successfully = False
+        except Exception as e: st.error(f"Error loading Masterdata Template from '{os.path.basename(MASTERDATA_TEMPLATE_XLSX_PATH)}': {e}"); files_loaded_successfully = False
     else: 
-        st.error(f"Masterdata Template CSV file not found: {MASTERDATA_TEMPLATE_CSV_PATH}")
+        st.error(f"Masterdata Template Excel file not found: {MASTERDATA_TEMPLATE_XLSX_PATH}")
         files_loaded_successfully = False
 
 
@@ -165,6 +173,10 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             unique_products = sorted(family_specific_df['Product Display Name'].dropna().unique())
             
             textile_color_combos_df = family_specific_df[['Upholstery Type', 'Upholstery Color']].drop_duplicates().copy()
+            # Ensure no NaN values interfere with string concatenation for header
+            textile_color_combos_df['Upholstery Type'] = textile_color_combos_df['Upholstery Type'].fillna("N/A_Type")
+            textile_color_combos_df['Upholstery Color'] = textile_color_combos_df['Upholstery Color'].fillna("N/A_Color")
+
             textile_color_combos_df['Combined Header'] = textile_color_combos_df['Upholstery Type'].astype(str) + " - " + textile_color_combos_df['Upholstery Color'].astype(str)
             sorted_textile_color_headers = sorted(textile_color_combos_df['Combined Header'].unique())
             
@@ -173,33 +185,55 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             elif not sorted_textile_color_headers:
                 st.info(f"Ingen tekstil/farve kombinationer fundet for familien: {selected_family}")
             else:
-                table_header_cols = [st.columns(1)[0]] + st.columns(len(sorted_textile_color_headers)) 
-                with table_header_cols[0]:
+                # Display Table Header
+                # Calculate number of columns needed: 1 for Product Name + number of textile_color_headers
+                num_data_cols = len(sorted_textile_color_headers)
+                # Define column widths: Product name column wider, others equal
+                col_widths = [2] + [1] * num_data_cols # Example: Product name col twice as wide as others
+                
+                header_row = st.columns(col_widths)
+                with header_row[0]:
                     st.caption("**Produkt**")
                 for i, header_text in enumerate(sorted_textile_color_headers):
-                    with table_header_cols[i+1]:
+                    with header_row[i+1]:
                         st.caption(f"**{header_text}**")
                 st.markdown("---")
 
+
                 for product_name_iter in unique_products:
-                    row_cols = [st.columns(1)[0]] + st.columns(len(sorted_textile_color_headers))
-                    with row_cols[0]:
+                    product_row = st.columns(col_widths)
+                    with product_row[0]:
                         st.markdown(f"**{product_name_iter}**")
 
                     product_df_current_row = family_specific_df[family_specific_df['Product Display Name'] == product_name_iter]
 
                     for i, combined_header_text in enumerate(sorted_textile_color_headers):
+                        # Deconstruct combined_header_text to get uph_type and uph_color
+                        # This needs to match how it was constructed (handling potential "N/A_Type" or "N/A_Color")
                         try:
-                            uph_type_col, uph_color_col = combined_header_text.split(" - ", 1)
+                            uph_type_col_header, uph_color_col_header = combined_header_text.split(" - ", 1)
+                            # Convert back "N/A_Type" to actual NaN for filtering if that's how data is stored, or handle as string
+                            uph_type_filter = uph_type_col_header if uph_type_col_header != "N/A_Type" else pd.NA
+                            uph_color_filter = uph_color_col_header if uph_color_col_header != "N/A_Color" else pd.NA
+
                         except ValueError:
                             st.error(f"Fejl i header dekonstruktion: {combined_header_text}")
                             continue
                         
-                        with row_cols[i+1]:
-                            cell_items_df = product_df_current_row[
-                                (product_df_current_row['Upholstery Type'].astype(str) == uph_type_col) &
-                                (product_df_current_row['Upholstery Color'].astype(str) == uph_color_col)
-                            ].drop_duplicates(subset=['Item No']) 
+                        with product_row[i+1]: # Use the product_row columns
+                            # Filter items for the current cell
+                            # Handle NA in Upholstery Type/Color for filtering
+                            if pd.isna(uph_type_filter):
+                                type_condition = product_df_current_row['Upholstery Type'].isna()
+                            else:
+                                type_condition = (product_df_current_row['Upholstery Type'].astype(str) == str(uph_type_filter))
+                            
+                            if pd.isna(uph_color_filter):
+                                color_condition = product_df_current_row['Upholstery Color'].isna()
+                            else:
+                                color_condition = (product_df_current_row['Upholstery Color'].astype(str) == str(uph_color_filter))
+
+                            cell_items_df = product_df_current_row[type_condition & color_condition].drop_duplicates(subset=['Item No'])
 
                             if cell_items_df.empty:
                                 st.markdown("<div style='height: 70px; display:flex; align-items:center; justify-content:center; font-size:0.8em; color: #aaa;'>-</div>", unsafe_allow_html=True)
@@ -210,27 +244,34 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                                     base_color_cell = str(item_row_cell.get('Base Color', "N/A"))
                                     swatch_url_cell = item_row_cell.get('Image URL swatch')
 
-                                    desc_parts_cell = [selected_family, product_name_iter, uph_type_col, uph_color_col]
+                                    desc_parts_cell = [selected_family, product_name_iter, uph_type_col_header, uph_color_col_header] # Use header text for description
                                     if base_color_cell.upper() != "N/A": desc_parts_cell.append(f"Ben: {base_color_cell}")
                                     full_desc_cell = " / ".join(map(str, desc_parts_cell))
 
                                     item_data_for_cb_cell = {
                                         "description": full_desc_cell, "item_no": item_no_cell, "article_no": article_no_cell,
                                         "family": selected_family, "product": product_name_iter,
-                                        "textile_family": uph_type_col, "textile_color": uph_color_col,
+                                        "textile_family": uph_type_col_header, "textile_color": uph_color_col_header, # Use header text
                                         "base_color": base_color_cell
                                     }
                                     is_selected_cell = any(sel['item_no'] == item_no_cell for sel in st.session_state.selected_items_for_download)
 
-                                    cell_content_cols = st.columns([0.5, 0.7, 1.3]) 
-                                    with cell_content_cols[0]:
-                                        st.checkbox(" ", value=is_selected_cell, key=f"cb_cell_{item_no_cell}",
-                                                    on_change=handle_item_checkbox_toggle, args=(item_data_for_cb_cell, f"cb_cell_{item_no_cell}"))
-                                    with cell_content_cols[1]:
-                                        if pd.notna(swatch_url_cell): st.image(swatch_url_cell, width=35)
-                                        else: st.markdown("<div style='width:35px; height:35px; font-size:0.6em; border:1px solid #ddd; display:flex; align-items:center; justify-content:center;'></div>", unsafe_allow_html=True)
-                                    with cell_content_cols[2]:
-                                        st.markdown(f"<div style='font-size:0.8em;'>Ben: {base_color_cell}<br><small><i>{item_no_cell}</i></small></div>", unsafe_allow_html=True)
+                                    # Use a container for better layout within the cell if multiple items
+                                    with st.container():
+                                        cell_content_cols = st.columns([0.3, 0.4, 1]) # Checkbox, Swatch, Base Color + Item
+                                        with cell_content_cols[0]:
+                                            st.checkbox(" ", value=is_selected_cell, key=f"cb_cell_{item_no_cell}",
+                                                        on_change=handle_item_checkbox_toggle, args=(item_data_for_cb_cell, f"cb_cell_{item_no_cell}"),
+                                                        label_visibility="collapsed")
+                                        with cell_content_cols[1]:
+                                            if pd.notna(swatch_url_cell): st.image(swatch_url_cell, width=30)
+                                            else: st.markdown("<div style='width:30px; height:30px; font-size:0.5em; border:1px solid #ddd; display:flex; align-items:center; justify-content:center;'></div>", unsafe_allow_html=True)
+                                        with cell_content_cols[2]:
+                                            st.markdown(f"<div style='font-size:0.75em; text-align:left;'>Ben: {base_color_cell}<br><small><i>{item_no_cell}</i></small></div>", unsafe_allow_html=True)
+                                    # Add a small visual separator if there are multiple items in one cell (rare with drop_duplicates)
+                                    if len(cell_items_df) > 1 and _ != cell_items_df.index[-1]:
+                                        st.markdown("<hr style='margin:1px 0; border-color:#f0f0f0'>", unsafe_allow_html=True)
+
                     st.markdown("---") 
         elif 'Product Display Name' not in family_specific_df.columns and not family_specific_df.empty:
              st.warning("Nødvendig kolonne 'Product Display Name' mangler for at vise tabel.")
@@ -315,11 +356,10 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
 
 
 else: 
-    st.error("En eller flere datafiler kunne ikke indlæses korrekt, eller nødvendige kolonner mangler. Kontroller stier, filformater og kolonnenavne i dine CSV-filer.")
-    if not os.path.exists(RAW_DATA_CSV_PATH): st.sidebar.error(f"FEJL: {RAW_DATA_CSV_PATH} ikke fundet.") # Changed to sidebar for diagnostics
-    if not os.path.exists(PRICE_MATRIX_WHOLESALE_CSV_PATH): st.sidebar.error(f"FEJL: {PRICE_MATRIX_WHOLESALE_CSV_PATH} ikke fundet.")
-    if not os.path.exists(PRICE_MATRIX_RETAIL_CSV_PATH): st.sidebar.error(f"FEJL: {PRICE_MATRIX_RETAIL_CSV_PATH} ikke fundet.")
-    if not os.path.exists(MASTERDATA_TEMPLATE_CSV_PATH): st.sidebar.error(f"FEJL: {MASTERDATA_TEMPLATE_CSV_PATH} ikke fundet.")
+    st.error("En eller flere datafiler kunne ikke indlæses korrekt, eller nødvendige kolonner mangler. Kontroller stier, filformater og kolonnenavne i dine .xlsx-filer.")
+    if not os.path.exists(RAW_DATA_XLSX_PATH): st.sidebar.error(f"FEJL: {RAW_DATA_XLSX_PATH} ikke fundet.")
+    if not os.path.exists(PRICE_MATRIX_XLSX_PATH): st.sidebar.error(f"FEJL: {PRICE_MATRIX_XLSX_PATH} (for wholesale/retail) ikke fundet.")
+    if not os.path.exists(MASTERDATA_TEMPLATE_XLSX_PATH): st.sidebar.error(f"FEJL: {MASTERDATA_TEMPLATE_XLSX_PATH} ikke fundet.")
 
 
 # --- Styling (Optional) ---
@@ -338,28 +378,39 @@ st.markdown("""
         line-height: 1.2;
     }
     div[data-testid="stImage"] img { 
-        max-height: 35px; 
+        max-height: 30px; /* Even smaller swatch in table cell */
         border: 1px solid #e2e8f0; 
         border-radius: 3px; 
         padding: 1px; 
         margin: auto; 
         display: block; 
     }
+    /* Ensure product name column is vertically aligned at the top for better readability with multi-line cell content */
+    div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div:first-child > div[data-testid="stMarkdownContainer"] {
+         align-items: flex-start !important; /* Align product name to top */
+         padding-top: 8px; /* Add some padding to align with cell content */
+    }
+
     div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] > div[data-testid="stMarkdownContainer"],
     div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] > div.stCheckbox {
-        font-size: 0.85em; 
+        font-size: 0.8em; /* Smaller font for cell content */
         display: flex; 
         flex-direction: column; 
         align-items: center; 
         justify-content: center; 
         height: auto; 
-        min-height: 65px; 
-        padding: 2px; 
+        min-height: 60px; /* Slightly reduced min-height */
+        padding: 1px; 
         text-align: center;
+        border-left: 1px solid #f0f0f0; /* Faint vertical lines between cells */
     }
+     div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div:first-child > div[data-testid="stMarkdownContainer"] {
+        border-left: none; /* No left border for the first (product name) column */
+    }
+
     div.stCheckbox { justify-content: center; }
-    hr { margin-top: 0.2rem; margin-bottom: 0.2rem; border-top: 1px solid #e2e8f0; }
+    hr { margin-top: 0.1rem; margin-bottom: 0.1rem; border-top: 1px solid #e2e8f0; } /* Thinner HR */
     .stButton>button { font-size: 0.9em; padding: 0.3em 0.7em; }
-    small { color: #718096; font-size:0.9em; } 
+    small { color: #718096; font-size:0.9em; display:block; line-height:1.1; } 
 </style>
 """, unsafe_allow_html=True)
