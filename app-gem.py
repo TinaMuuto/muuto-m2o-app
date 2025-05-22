@@ -470,6 +470,7 @@ st.markdown("""
     h1 { color: #333; } /* App Title */
     h2 { /* Step Headers */
         color: #1E40AF; 
+        /* border-bottom: 2px solid #BFDBFE; */ /* Removed blue line */
         padding-bottom: 5px; 
         margin-top: 30px; 
         margin-bottom: 15px; 
@@ -486,7 +487,7 @@ st.markdown("""
         font-size: 0.8em !important; 
         color: #4A5568 !important; 
         text-align: center; 
-        white-space: normal; /* Allow text to wrap if absolutely necessary */
+        white-space: normal; 
         overflow-wrap: break-word; 
         line-height: 1.2;
         padding: 2px;
@@ -496,8 +497,8 @@ st.markdown("""
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
-        display: block; /* Ensure it takes up block space to allow ellipsis */
-        max-width: 100%; /* Constrain to column width */
+        display: block; 
+        max-width: 100%; 
     }
     div[data-testid="stCaptionContainer"] img { /* Swatch in header */
         max-height: 25px !important; 
