@@ -567,19 +567,20 @@ st.markdown("""
     .product-name-cell {
         display: flex;
         align-items: center; 
-        height: auto; 
-        min-height: 30px; 
+        height: auto; /* Let height be determined by content up to max-height */
+        min-height: 30px; /* Ensure it's at least as tall as checkbox row for alignment */
         line-height: 1.3; 
-        max-height: calc(1.3em * 2 + 6px); 
-        overflow: hidden; 
+        max-height: calc(1.3em * 2 + 4px); /* Max height for approx two lines + small padding */
+        overflow-y: hidden; /* Hide vertical overflow if text exceeds max-height */
         color: #31333F !important; 
-        font-weight: normal !important; /* Removed bold */
-        font-size: 0.8em !important; /* Reduced font size */
+        font-weight: normal !important; 
+        font-size: 0.8em !important; 
         padding-right: 5px; 
+        word-break: break-word; /* Allow long words to break to prevent horizontal overflow */
     }
 
     /* Container for checkbox or grey box within each matrix data cell */
-    div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] { /* More specific selector */
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] { 
         height: 30px !important; 
         min-height: 30px !important;
         display: flex !important;
@@ -595,8 +596,8 @@ st.markdown("""
          display: flex !important;
          align-items: center !important;
          justify-content: center !important;
-         width: 20px; /* Fixed width for the checkbox wrapper */
-         height: 20px; /* Fixed height for the checkbox wrapper */
+         width: 20px; 
+         height: 20px; 
     }
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] {
         width: 20px !important; 
@@ -606,8 +607,8 @@ st.markdown("""
         justify-content: center !important;
     }
     /* Visual box of the checkbox - UNCHECKED STATE */
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > input[type="checkbox"][aria-checked="false"] + div > span:first-child, /* If label text div is between input and visual span */
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child { /* Default for when input is not explicitly false or span is first */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > input[type="checkbox"][aria-checked="false"] ~ div span:first-child,
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child { 
         background-color: #FFFFFF !important; 
         border: 1px solid #5B4A14 !important; 
         box-shadow: none !important;
@@ -616,20 +617,19 @@ st.markdown("""
         border-radius: 0.25rem !important;
     }
     /* Checkmark SVG - UNCHECKED STATE (invisible) */
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > input[type="checkbox"][aria-checked="false"] + div > span:first-child svg,
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > input[type="checkbox"][aria-checked="false"] ~ div span:first-child svg,
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child svg {
         fill: #FFFFFF !important; 
     }
 
     /* Visual box of the checkbox - CHECKED STATE */
-    /* This targets the first span child of the label when the input inside that label is checked */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child {
-        background-color: #5B4A14 !important; /* Gold background for checked */
-        border-color: #5B4A14 !important; /* Gold border for checked */
+        background-color: #5B4A14 !important; 
+        border-color: #5B4A14 !important; 
     }
     /* Checkmark SVG - CHECKED STATE (white) */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child svg {
-        fill: #FFFFFF !important; /* White checkmark */
+        fill: #FFFFFF !important; 
     }
 
 
@@ -713,29 +713,22 @@ st.markdown("""
         line-height:1.1;
     }
     /* --- Multiselect Tags Styling --- */
-    /* This targets the selected tag itself */
-    div[data-testid="stMultiSelect"] span[data-baseweb="tag"][aria-selected="true"] {
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] {
         background-color: #5B4A14 !important; 
         border-radius: 0.25rem !important; 
         padding-top: 0.2em !important; 
         padding-bottom: 0.2em !important;
-        border: none !important; /* Remove default border if any */
+        border: none !important; 
     }
-    /* Text inside selected tag */
-    div[data-testid="stMultiSelect"] span[data-baseweb="tag"][aria-selected="true"] > span[title] {
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[title] {
         color: white !important;
         font-size: 0.85em !important;
         line-height: 1.2 !important; 
-        margin-right: 4px !important; /* Space before the 'x' */
+        margin-right: 4px !important; 
     }
-    /* Close 'x' icon container span */
-    div[data-testid="stMultiSelect"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] {
-        /* margin-left: 4px !important; */ /* Adjust spacing if needed */
-    }
-    /* Close 'x' icon SVG in selected tag */
-    div[data-testid="stMultiSelect"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] svg {
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] svg {
         fill: white !important;
-        width: 1em !important; /* Adjust size if needed */
+        width: 1em !important; 
         height: 1em !important;
     }
 
