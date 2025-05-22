@@ -176,6 +176,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
 
     # Corrected Callback for base color multiselect
     def handle_base_color_multiselect_change(item_key_for_base_select):
+        # The widget's key is needed to get its current value from session_state
         multiselect_widget_key = f"ms_base_{item_key_for_base_select}"
         st.session_state.user_chosen_base_colors_for_items[item_key_for_base_select] = st.session_state[multiselect_widget_key]
 
@@ -283,7 +284,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
         item_data for key, item_data in st.session_state.matrix_selected_generic_items.items() if item_data.get('requires_base_choice')
     ]
     if items_needing_base_choice_now:
-        st.header("Step 1.1: Select Base Colors")
+        st.header("Select Base Colors for one or more of the combinations you have created")
         for generic_item in items_needing_base_choice_now:
             item_key = generic_item['key']
             multiselect_key = f"ms_base_{item_key}" 
@@ -292,16 +293,16 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             current_selection_for_this_item = st.session_state.user_chosen_base_colors_for_items.get(item_key, [])
 
             st.multiselect(
-                f"Available base colors:",
+                f"Choose one or more base color oprionts avilable:",
                 options=generic_item['available_bases'],
                 default=current_selection_for_this_item,
                 key=multiselect_key, 
                 on_change=handle_base_color_multiselect_change, 
-                args=(item_key, multiselect_key) # Pass item_key and the widget's own key
+                args=(item_key,) # Only pass item_key, widget_key will be reconstructed in callback
             )
             st.markdown("---")
 
-    # --- Step 3: Select Currency ---
+    # --- Step 2: Select Currency ---
     st.header("Step 2: Select Currency")
     selected_currency = None 
     try:
@@ -334,7 +335,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
         selected_currency = None
 
 
-    # --- Step 4: Generate Master Data File ---
+    # --- Step 3: Generate Master Data File ---
     st.header("Step 3: Generate Master Data File")
     if st.button("Generate Master Data File", key="generate_file_final_button"):
         if not st.session_state.matrix_selected_generic_items: 
