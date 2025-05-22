@@ -154,6 +154,10 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                     del st.session_state.user_chosen_base_colors_for_items[generic_item_key]
                 st.toast(f"Deselected: {prod_name} / {uph_type} / {uph_color}", icon="➖")
 
+    # Callback for base color multiselect
+    def handle_base_color_multiselect_change(item_key_for_base_select, multiselect_widget_key):
+        st.session_state.user_chosen_base_colors_for_items[item_key_for_base_select] = st.session_state[multiselect_widget_key]
+
 
     if selected_family and selected_family != DEFAULT_NO_SELECTION and 'Product Family' in df_for_display.columns:
         family_df = df_for_display[df_for_display['Product Family'] == selected_family]
@@ -208,7 +212,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                                 if sw_url: 
                                     st.image(sw_url, width=30)
                                 else: 
-                                    st.markdown("<div style='height:30px; width:30px;'></div>", unsafe_allow_html=True)
+                                    st.markdown("<div class='swatch-placeholder'></div>", unsafe_allow_html=True)
                     
                     cols_color_num_header = st.columns([2.5] + [1] * num_data_columns)
                     for i, col_widget in enumerate(cols_color_num_header):
@@ -240,12 +244,16 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                                     cb_key_str = f"cb_{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ","_").replace("/","_").replace("(","").replace(")","")
                                     is_gen_selected = cb_key_str in st.session_state.matrix_selected_generic_items
                                     
-                                    st.checkbox(" ", value=is_gen_selected, key=cb_key_str,
-                                                on_change=handle_matrix_cb_toggle, 
-                                                args=(prod_name, current_col_uph_type_filter, current_col_uph_color_filter, cb_key_str),
-                                                label_visibility="collapsed")
+                                    # Apply a class to the container if selected for visual feedback
+                                    container_class = "matrix-cell-selected" if is_gen_selected else "matrix-cell"
+                                    with st.container(): # Use st.container to apply custom class if needed for cell bg
+                                        # For now, just the checkbox. Styling the container background is more complex.
+                                        st.checkbox(" ", value=is_gen_selected, key=cb_key_str,
+                                                    on_change=handle_matrix_cb_toggle, 
+                                                    args=(prod_name, current_col_uph_type_filter, current_col_uph_color_filter, cb_key_str),
+                                                    label_visibility="collapsed")
                                 else:
-                                    st.markdown("<div style='height:30px;'>-</div>", unsafe_allow_html=True) 
+                                    st.markdown("<div class='matrix-cell-empty'>-</div>", unsafe_allow_html=True) 
                         st.markdown("---")
         else:
             if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"No data found for product family: {selected_family}")
@@ -259,14 +267,20 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
         st.header("Step 2: Select Base Colors")
         for generic_item in items_needing_base_choice_now:
             item_key = generic_item['key']
+            multiselect_key = f"ms_base_{item_key}" # Define key for the multiselect widget
             st.markdown(f"**{generic_item['product']}** ({generic_item['upholstery_type']} - {generic_item['upholstery_color']})")
-            chosen_bases = st.multiselect(
+            
+            # Get current selection from the dedicated session state variable for this item's base colors
+            current_selection_for_this_item = st.session_state.user_chosen_base_colors_for_items.get(item_key, [])
+
+            st.multiselect(
                 f"Available base colors:",
                 options=generic_item['available_bases'],
-                default=st.session_state.user_chosen_base_colors_for_items.get(item_key, []),
-                key=f"ms_base_{item_key}"
+                default=current_selection_for_this_item,
+                key=multiselect_key, # Use the defined key
+                on_change=handle_base_color_multiselect_change, # Add on_change callback
+                args=(item_key, multiselect_key) # Pass item_key and widget's own key to callback
             )
-            st.session_state.user_chosen_base_colors_for_items[item_key] = chosen_bases
             st.markdown("---")
 
     # --- Step 3: Confirm Selections ---
@@ -349,9 +363,9 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             master_template_columns_final_output = []
             
             for col in st.session_state.template_cols:
-                if col.lower() == "wholesale price": # Case insensitive check for template
+                if col.lower() == "wholesale price": 
                     master_template_columns_final_output.append(ws_price_col_name_dynamic)
-                elif col.lower() == "retail price": # Case insensitive check for template
+                elif col.lower() == "retail price": 
                     master_template_columns_final_output.append(rt_price_col_name_dynamic)
                 else:
                     master_template_columns_final_output.append(col)
@@ -426,13 +440,16 @@ else:
 # --- Styling (Optional) ---
 st.markdown("""
 <style>
-    body {
-        background-color: #ff4b4b;
+    /* Apply background color to the main app container and body */
+    .stApp, body {
+        background-color: #EFEEEB !important;
     }
-    /* Ensure main app area also gets background if body doesn't cover all */
+    /* More specific selector for main content area if needed */
     .main .block-container {
-        background-color: #EFEEEB;
+        background-color: #EFEEEB !important; 
+        /* padding-top: 2rem; Add padding if content is too close to top */
     }
+
     h1 { color: #333; } /* App Title */
     h2 { /* Step Headers */
         color: #1E40AF; 
@@ -462,6 +479,27 @@ st.markdown("""
         max-height: 20px !important; 
         margin-right: 3px; 
     }
+    /* Placeholder for empty swatch */
+    .swatch-placeholder {
+        width:30px; 
+        height:30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.6em;
+        color: #ccc;
+        border: 1px dashed #ddd;
+    }
+    /* Placeholder for empty matrix cell */
+    .matrix-cell-empty {
+        height:30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8em;
+        color: #aaa;
+    }
+
     hr { 
         margin-top: 0.2rem; 
         margin-bottom: 0.2rem; 
@@ -477,17 +515,15 @@ st.markdown("""
         display:block; 
         line-height:1.1; 
     } 
-    /* Styling for selected items in st.multiselect */
-    div[data-testid="stMultiSelect"] div[data-baseweb="tag"] {
+    /* Styling for selected items in st.multiselect for base colors */
+    div[data-testid="stMultiSelect"] div[data-baseweb="tag"][aria-selected="true"] {
         background-color: #687026 !important;
-        border-radius: 4px !important;
-        border: none !important;
     }
-    div[data-testid="stMultiSelect"] div[data-baseweb="tag"] span:not([role="button"]) { /* Target text */
+    div[data-testid="stMultiSelect"] div[data-baseweb="tag"][aria-selected="true"] > div { /* Text part of the pill */
         color: white !important;
         font-size: 0.85em !important;
     }
-    div[data-testid="stMultiSelect"] div[data-baseweb="tag"] span[role="button"] { /* Target 'x' remove icon */
+    div[data-testid="stMultiSelect"] div[data-baseweb="tag"][aria-selected="true"] span[role="button"] { /* 'x' remove icon */
         color: white !important;
     }
 </style>
