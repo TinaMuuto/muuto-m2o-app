@@ -591,7 +591,7 @@ st.markdown("""
         margin: 0 !important;
         box-sizing: border-box;
     }
-    /* This ensures the stMarkdownContainer within stVerticalBlock also behaves for centering the grey box */
+    /* This ensures the stMarkdownContainer (when used for unavailable cells) also behaves for centering */
     div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] > div[data-testid="stMarkdown"] > div[data-testid="stMarkdownContainer"] {
         display: flex !important;
         align-items: center !important;
@@ -657,8 +657,7 @@ st.markdown("""
         fill: #FFFFFF !important; 
     }
 
-    /* --- Unavailable Matrix Cell (Grey Box) Styling - REMOVED as per request --- */
-    /* .unavailable-matrix-cell { ... } */
+    /* --- Unavailable Matrix Cell Styling - REMOVED as per request --- */
 
 
     hr {
@@ -729,13 +728,13 @@ st.markdown("""
     }
     /* --- Multiselect Tags Styling --- */
     /* This targets the selected tag itself within the stMultiSelect widget */
-    /* Using .st-eh and .st-ei as identified from user's HTML snippet for increased specificity */
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-eh,
+    /* Adding .st-ei and .st-eh to the selector for higher specificity against Streamlit's defaults */
     div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-ei,
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] /* General selected tag as fallback */
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-eh,
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] /* Fallback */
      {
         background-color: #5B4A14 !important; 
-        background-image: none !important; /* Ensure no gradient from other rules */
+        background-image: none !important; 
         border-radius: 0.25rem !important; 
         padding-top: 0.2em !important; 
         padding-bottom: 0.2em !important;
