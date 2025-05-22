@@ -3,11 +3,19 @@ import pandas as pd
 import io
 import os
 
+# --- Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
+st.set_page_config(
+    layout="wide",
+    page_title="Muuto M2O", # Updated page title
+    page_icon="favicon.png"  # Assumes favicon.png is in the same directory as the script
+)
+
 # --- Configuration & Constants ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RAW_DATA_XLSX_PATH = os.path.join(BASE_DIR, "raw-data.xlsx")
 PRICE_MATRIX_XLSX_PATH = os.path.join(BASE_DIR, "price-matrix_EUROPE.xlsx")
 MASTERDATA_TEMPLATE_XLSX_PATH = os.path.join(BASE_DIR, "Masterdata-output-template.xlsx")
+LOGO_PATH = os.path.join(BASE_DIR, "muuto_logo_logo.png") # Path for the main logo
 
 RAW_DATA_APP_SHEET = "APP"
 PRICE_MATRIX_WHOLESALE_SHEET = "Price matrix wholesale"
@@ -28,25 +36,37 @@ def construct_product_display_name(row):
     return " - ".join(name_parts) if name_parts else "Unnamed Product"
 
 # --- Main App Logic ---
-st.set_page_config(layout="wide")
-st.title("Muuto Made-to-Order Master Data Tool")
+
+# --- Logo and Title Section ---
+top_col1, top_col2 = st.columns([6, 1]) 
+
+with top_col1:
+    st.title("Muuto Made-to-Order Master Data Tool")
+
+with top_col2:
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=120) 
+    # else:
+    #     st.caption("Logo not found") 
 
 # --- App Introduction ---
 st.markdown("""
-Welcome to Muuto's Made-to-Order (MTO) product selection and master data export tool.
+Welcome to Muuto's Made-to-Order (MTO) Product Configurator!
 
-This tool is designed to make it easy for you to:
+This tool simplifies selecting MTO products and generating the data you need for your systems. Here's how it works:
 
-1.  **Explore and Select:** Navigate our MTO assortment by choosing a product family. Then, configure your desired products by specifying the upholstery family and color.
-2.  **Specify Details:** For products with multiple options, you can subsequently select specific base colors.
-3.  **Confirm Your Choices:** Review and adjust your complete list of configured products.
-4.  **Select Currency:** Specify your preferred currency for pricing information.
-5.  **Generate Master Data:** Receive a complete master data file (Excel) with all relevant details for your chosen MTO products, including item numbers, article numbers, and prices. This file is formatted for easy implementation into your own systems.
-
-The goal is to provide you with an efficient tool to quickly assemble orders and integrate Muuto's MTO products into your business.
+1.  **Select Product Family & Combinations:**
+    * Choose a product family to view its available products and upholstery options.
+    * Select your desired product, upholstery, and color combinations directly in the matrix. You can easily switch product families to add more items to your overall selection.
+2.  **Specify Base Colors (if applicable):**
+    * For items where multiple base colors are available, you can select one or more options using the multiselect feature.
+3.  **Confirm Selections:**
+    * Review all your chosen product configurations.
+4.  **Select Currency:**
+    * Choose your preferred currency for pricing.
+5.  **Generate Master Data:**
+    * Download an Excel file containing all master data for your selected items, ready for easy integration.
 """)
-st.divider()
-
 
 # --- Initialize session state variables ---
 if 'raw_df' not in st.session_state: st.session_state.raw_df = None
@@ -198,7 +218,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                             map_entry = data_column_map[i-1]
                             if map_entry['uph_type'] != current_uph_type_header_display:
                                 with col_widget: 
-                                    st.caption(f"**{map_entry['uph_type']}**")
+                                    st.caption(f"<div class='upholstery-header'>{map_entry['uph_type']}</div>", unsafe_allow_html=True)
                                 current_uph_type_header_display = map_entry['uph_type']
                             
                     cols_swatch_header = st.columns([2.5] + [1] * num_data_columns)
@@ -211,6 +231,8 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                             with col_widget:
                                 if sw_url: 
                                     st.image(sw_url, width=30)
+                                    if i == 1: # Add instruction next to the very first swatch
+                                        st.caption("<small>(Click to zoom)</small>", unsafe_allow_html=True)
                                 else: 
                                     st.markdown("<div class='swatch-placeholder'></div>", unsafe_allow_html=True)
                     
@@ -222,7 +244,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                         else:
                             with col_widget: 
                                 st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
-                    st.markdown("---")
+                    # st.markdown("---") # Removed this separator
 
                     for prod_name in products_in_family:
                         cols_product_row = st.columns([2.5] + [1] * num_data_columns)
@@ -239,21 +261,18 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                                 (family_df['Upholstery Color'].astype(str).fillna("N/A") == current_col_uph_color_filter)
                             ]
                             
-                            with col_widget:
-                                if not item_exists_df.empty:
-                                    cb_key_str = f"cb_{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ","_").replace("/","_").replace("(","").replace(")","")
-                                    is_gen_selected = cb_key_str in st.session_state.matrix_selected_generic_items
-                                    
-                                    # Apply a class to the container if selected for visual feedback
-                                    container_class = "matrix-cell-selected" if is_gen_selected else "matrix-cell"
-                                    with st.container(): # Use st.container to apply custom class if needed for cell bg
-                                        # For now, just the checkbox. Styling the container background is more complex.
-                                        st.checkbox(" ", value=is_gen_selected, key=cb_key_str,
-                                                    on_change=handle_matrix_cb_toggle, 
-                                                    args=(prod_name, current_col_uph_type_filter, current_col_uph_color_filter, cb_key_str),
-                                                    label_visibility="collapsed")
-                                else:
-                                    st.markdown("<div class='matrix-cell-empty'>-</div>", unsafe_allow_html=True) 
+                            cell_container = col_widget.container()
+                            
+                            if not item_exists_df.empty:
+                                cb_key_str = f"cb_{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ","_").replace("/","_").replace("(","").replace(")","")
+                                is_gen_selected = cb_key_str in st.session_state.matrix_selected_generic_items
+                                
+                                cell_container.checkbox(" ", value=is_gen_selected, key=cb_key_str,
+                                            on_change=handle_matrix_cb_toggle, 
+                                            args=(prod_name, current_col_uph_type_filter, current_col_uph_color_filter, cb_key_str),
+                                            label_visibility="collapsed")
+                            else:
+                                cell_container.markdown("<div class='matrix-cell-empty'>-</div>", unsafe_allow_html=True) 
                         st.markdown("---")
         else:
             if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"No data found for product family: {selected_family}")
@@ -267,19 +286,18 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
         st.header("Step 2: Select Base Colors")
         for generic_item in items_needing_base_choice_now:
             item_key = generic_item['key']
-            multiselect_key = f"ms_base_{item_key}" # Define key for the multiselect widget
+            multiselect_key = f"ms_base_{item_key}" 
             st.markdown(f"**{generic_item['product']}** ({generic_item['upholstery_type']} - {generic_item['upholstery_color']})")
             
-            # Get current selection from the dedicated session state variable for this item's base colors
             current_selection_for_this_item = st.session_state.user_chosen_base_colors_for_items.get(item_key, [])
 
             st.multiselect(
                 f"Available base colors:",
                 options=generic_item['available_bases'],
                 default=current_selection_for_this_item,
-                key=multiselect_key, # Use the defined key
-                on_change=handle_base_color_multiselect_change, # Add on_change callback
-                args=(item_key, multiselect_key) # Pass item_key and widget's own key to callback
+                key=multiselect_key, 
+                on_change=handle_base_color_multiselect_change, 
+                args=(item_key, multiselect_key) 
             )
             st.markdown("---")
 
@@ -447,7 +465,6 @@ st.markdown("""
     /* More specific selector for main content area if needed */
     .main .block-container {
         background-color: #EFEEEB !important; 
-        /* padding-top: 2rem; Add padding if content is too close to top */
     }
 
     h1 { color: #333; } /* App Title */
@@ -470,35 +487,56 @@ st.markdown("""
         font-size: 0.8em !important; 
         color: #4A5568 !important; 
         text-align: center; 
-        white-space: normal; 
+        white-space: normal; /* Allow text to wrap if absolutely necessary */
         overflow-wrap: break-word; 
         line-height: 1.2;
         padding: 2px;
     }
+    /* Specifically target Upholstery Type headers for no-wrap */
+    .upholstery-header {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: block; /* Ensure it takes up block space to allow ellipsis */
+        max-width: 100%; /* Constrain to column width */
+    }
     div[data-testid="stCaptionContainer"] img { /* Swatch in header */
-        max-height: 20px !important; 
+        max-height: 25px !important; 
+        width: 25px !important;    
+        object-fit: cover;         
         margin-right: 3px; 
     }
-    /* Placeholder for empty swatch */
+    /* Placeholder for empty swatch in header */
     .swatch-placeholder {
-        width:30px; 
-        height:30px;
+        width:25px; 
+        height:25px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 0.6em;
         color: #ccc;
         border: 1px dashed #ddd;
+        background-color: #f9f9f9; 
     }
     /* Placeholder for empty matrix cell */
     .matrix-cell-empty {
-        height:30px;
+        height:30px; 
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 0.8em;
         color: #aaa;
     }
+    
+    /* Custom styling for the checkbox itself when checked */
+    div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div {
+        background-color: #9A5E18 !important; 
+        border-color: #9A5E18 !important; 
+    }
+    div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div svg {
+        fill: white !important; 
+    }
+
 
     hr { 
         margin-top: 0.2rem; 
@@ -517,14 +555,45 @@ st.markdown("""
     } 
     /* Styling for selected items in st.multiselect for base colors */
     div[data-testid="stMultiSelect"] div[data-baseweb="tag"][aria-selected="true"] {
-        background-color: #687026 !important;
+        background-color: #9A5E18 !important; 
     }
-    div[data-testid="stMultiSelect"] div[data-baseweb="tag"][aria-selected="true"] > div { /* Text part of the pill */
+    div[data-testid="stMultiSelect"] div[data-baseweb="tag"][aria-selected="true"] > div { 
         color: white !important;
         font-size: 0.85em !important;
     }
-    div[data-testid="stMultiSelect"] div[data-baseweb="tag"][aria-selected="true"] span[role="button"] { /* 'x' remove icon */
+    div[data-testid="stMultiSelect"] div[data-baseweb="tag"][aria-selected="true"] span[role="button"] { 
         color: white !important;
+    }
+
+    /* White background and black text for input fields and dropdowns */
+    div[data-testid="stTextInput"] input, 
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:first-child,
+    div[data-testid="stMultiSelect"] div[data-baseweb="input"] { 
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+        border: 1px solid #CCCCCC !important; 
+    }
+    /* Text color for dropdown list items */
+    div[data-baseweb="popover"] ul li {
+        color: #000000 !important;
+        background-color: #FFFFFF !important; 
+    }
+    div[data-baseweb="popover"] ul li:hover {
+        background-color: #f0f0f0 !important; 
+    }
+     /* Text color for selected value in dropdown when not expanded */
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:first-child > div > div {
+         color: #000000 !important;
+    }
+
+
+    /* Active/focused border color for inputs and dropdowns */
+    div[data-testid="stTextInput"] input:focus,
+    div[data-testid="stSelectbox"] div[data-baseweb="select"][aria-expanded="true"] > div:first-child,
+    div[data-testid="stMultiSelect"] div[data-baseweb="input"]:focus-within, 
+    div[data-testid="stMultiSelect"] div[aria-expanded="true"] { 
+        border-color: #9A5E18 !important;
+        box-shadow: 0 0 0 1px #9A5E18 !important;
     }
 </style>
 """, unsafe_allow_html=True)
