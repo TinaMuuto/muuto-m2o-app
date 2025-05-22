@@ -248,7 +248,7 @@ if files_loaded_successfully:
                     for prod_name in products_in_family:
                         cols_product_row = st.columns([2.5] + [1] * num_data_columns, vertical_alignment="center")
                         with cols_product_row[0]:
-                            st.markdown(f"<div class='product-name-cell'>{prod_name}</div>", unsafe_allow_html=True) # Removed **
+                            st.markdown(f"<div class='product-name-cell'>{prod_name}</div>", unsafe_allow_html=True)
 
                         for i, col_widget in enumerate(cols_product_row[1:]):
                             current_col_uph_type_filter = data_column_map[i]['uph_type']
@@ -567,17 +567,19 @@ st.markdown("""
     .product-name-cell {
         display: flex;
         align-items: center; 
-        height: auto; /* Allow height to adjust to content */
-        min-height: 30px; /* Ensure it's at least as tall as checkbox row */
-        line-height: 1.3; /* Adjust for two lines */
-        max-height: calc(1.3em * 2 + 6px); /* Max height for two lines + padding */
-        overflow: hidden; /* Hide overflow if more than two lines */
+        height: auto; 
+        min-height: 30px; 
+        line-height: 1.3; 
+        max-height: calc(1.3em * 2 + 6px); 
+        overflow: hidden; 
         color: #31333F !important; 
-        font-weight: bold;
-        padding-right: 5px; /* Add some padding to prevent text touching edge */
+        font-weight: normal !important; /* Removed bold */
+        font-size: 0.8em !important; /* Reduced font size */
+        padding-right: 5px; 
     }
 
-    div[data-testid="stHorizontalBlock"] > div > div[data-testid="stVerticalBlock"] {
+    /* Container for checkbox or grey box within each matrix data cell */
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] { /* More specific selector */
         height: 30px !important; 
         min-height: 30px !important;
         display: flex !important;
@@ -588,16 +590,14 @@ st.markdown("""
     }
 
     /* --- Checkbox Styling --- */
-    /* Overall container for st.checkbox to help with centering */
     div.stCheckbox {
          margin: 0 !important;
          display: flex !important;
          align-items: center !important;
          justify-content: center !important;
-         width: 100%; 
-         height: 100%; 
+         width: 20px; /* Fixed width for the checkbox wrapper */
+         height: 20px; /* Fixed height for the checkbox wrapper */
     }
-    /* The label element that Streamlit uses for the checkbox */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] {
         width: 20px !important; 
         height: 20px !important;
@@ -605,50 +605,31 @@ st.markdown("""
         align-items: center !important;
         justify-content: center !important;
     }
-    /* The visual square of the checkbox (span:first-child of the label) - UNCHECKED STATE */
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child {
-        background-color: #FFFFFF !important; /* White background for unchecked */
-        border: 1px solid #5B4A14 !important; /* Gold border for unchecked */
+    /* Visual box of the checkbox - UNCHECKED STATE */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > input[type="checkbox"][aria-checked="false"] + div > span:first-child, /* If label text div is between input and visual span */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child { /* Default for when input is not explicitly false or span is first */
+        background-color: #FFFFFF !important; 
+        border: 1px solid #5B4A14 !important; 
         box-shadow: none !important;
         width: 20px !important; 
         height: 20px !important;
         border-radius: 0.25rem !important;
     }
-    /* The checkmark SVG - default state (effectively hidden or very light for UNCHECKED) */
+    /* Checkmark SVG - UNCHECKED STATE (invisible) */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > input[type="checkbox"][aria-checked="false"] + div > span:first-child svg,
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child svg {
-        fill: #FFFFFF !important; /* White fill to blend with white background (invisible) */
+        fill: #FFFFFF !important; 
     }
 
-    /* CHECKED STATE: This relies on Streamlit applying a style that changes the background of span:first-child.
-       If Streamlit's theme primary color is set to #5B4A14, this should work.
-       This rule ensures the SVG checkmark is white if the background becomes gold.
-       This specific selector targets the span if the input (which is a sibling AFTER the span) is checked.
-       This is hard to do with pure CSS if Streamlit doesn't add a class to the span or label.
-       The most reliable way is often to set the theme's primary color.
-       However, if Streamlit *does* change the background of span:first-child when checked, this will make the SVG white.
-    */
-    /* Attempting to style the CHECKED state of the box directly is difficult due to DOM order.
-       The following targets the SVG to be white, assuming the box becomes gold by Streamlit's theme. */
-    div[data-testid="stCheckbox"] input[type="checkbox"][aria-checked="true"] ~ div span:first-child svg, /* If label text div is between */
-    div[data-testid="stCheckbox"] input[type="checkbox"][aria-checked="true"] + span svg, /* If span is direct sibling after */
-    /* More general: if the span itself gets a class or style indicating checked, its SVG should be white */
-    /* For now, this is the most robust for the SVG if the box turns gold: */
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > input[type="checkbox"][aria-checked="true"] ~ span:first-of-type svg { /* This selector is unlikely to work due to DOM order */
-         /* fill: white !important; */ /* This was part of previous attempts, might not be needed if the one below works */
+    /* Visual box of the checkbox - CHECKED STATE */
+    /* This targets the first span child of the label when the input inside that label is checked */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child {
+        background-color: #5B4A14 !important; /* Gold background for checked */
+        border-color: #5B4A14 !important; /* Gold border for checked */
     }
-    /* If the span itself (the box) somehow indicates it's checked (e.g. its background becomes gold via theme) */
-    /* This rule ensures the SVG is white if the box is gold */
-     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child[style*="background-color: rgb(91, 74, 20)"] svg,
-     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child[style*="background-color: #5B4A14"] svg {
-        fill: white !important;
-    }
-    /* If Streamlit adds a class to the label when checked (e.g., from user HTML snippet st-e8, st-e9 might be related) */
-    /* This is speculative without seeing live DOM changes */
-    label.st-e8.st-e9 > span:first-child { /* Example speculative selector */
-        /* background-color: #5B4A14 !important; */
-    }
-    label.st-e8.st-e9 > span:first-child svg {
-        /* fill: white !important; */
+    /* Checkmark SVG - CHECKED STATE (white) */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child svg {
+        fill: #FFFFFF !important; /* White checkmark */
     }
 
 
@@ -661,6 +642,7 @@ st.markdown("""
         background-color: #e9ecef !important;
         border: 1px solid #ced4da !important;
         border-radius: 0.25rem !important;
+        /* Centered by its parent stVerticalBlock */
     }
 
 
@@ -676,7 +658,6 @@ st.markdown("""
 
 
     /* --- Button Styling (General and Download Button) --- */
-    /* This targets the button element directly within stDownloadButton or stButton containers */
     div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"],
     div[data-testid="stButton"] button[data-testid^="stBaseButton"] {
         border: 1px solid #5B4A14 !important;
@@ -690,12 +671,11 @@ st.markdown("""
         font-weight: 500 !important;
         text-transform: none !important; 
     }
-    /* Text inside the button (often a <p> tag) */
     div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"] p,
     div[data-testid="stButton"] button[data-testid^="stBaseButton"] p {
         color: inherit !important; 
         text-transform: none !important;
-        margin: 0 !important; /* Remove default p margins */
+        margin: 0 !important; 
     }
 
     div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:hover,
@@ -728,7 +708,6 @@ st.markdown("""
 
 
     small {
-        /* color: #718096; This was the general rule, overridden for matrix color numbers */
         font-size:0.9em;
         display:block;
         line-height:1.1;
@@ -736,21 +715,30 @@ st.markdown("""
     /* --- Multiselect Tags Styling --- */
     /* This targets the selected tag itself */
     div[data-testid="stMultiSelect"] span[data-baseweb="tag"][aria-selected="true"] {
-        background-color: #5B4A14 !important; /* Gold background for the pill */
-        border-radius: 0.25rem !important; /* Match other border radiuses */
-        padding-top: 0.2em !important; /* Adjust padding for better text centering */
+        background-color: #5B4A14 !important; 
+        border-radius: 0.25rem !important; 
+        padding-top: 0.2em !important; 
         padding-bottom: 0.2em !important;
+        border: none !important; /* Remove default border if any */
     }
     /* Text inside selected tag */
     div[data-testid="stMultiSelect"] span[data-baseweb="tag"][aria-selected="true"] > span[title] {
         color: white !important;
         font-size: 0.85em !important;
-        line-height: 1.2 !important; /* Improve vertical centering of text */
+        line-height: 1.2 !important; 
+        margin-right: 4px !important; /* Space before the 'x' */
+    }
+    /* Close 'x' icon container span */
+    div[data-testid="stMultiSelect"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] {
+        /* margin-left: 4px !important; */ /* Adjust spacing if needed */
     }
     /* Close 'x' icon SVG in selected tag */
-    div[data-testid="stMultiSelect"] span[data-baseweb="tag"][aria-selected="true"] span[role="button"] svg {
+    div[data-testid="stMultiSelect"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] svg {
         fill: white !important;
+        width: 1em !important; /* Adjust size if needed */
+        height: 1em !important;
     }
+
 
     /* White background and black text for input fields and dropdowns */
     div[data-testid="stTextInput"] input,
