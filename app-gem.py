@@ -283,12 +283,12 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"No data found for product family: {selected_family}")
 
 
-    # --- Step 2: Select Base Colors ---
+    # --- Select Base Colors ---
     items_needing_base_choice_now = [
         item_data for key, item_data in st.session_state.matrix_selected_generic_items.items() if item_data.get('requires_base_choice')
     ]
     if items_needing_base_choice_now:
-        st.header("Step 2: Select Base Colors")
+        st.header(Select Base Color(s)")
         for generic_item in items_needing_base_choice_now:
             item_key = generic_item['key']
             multiselect_key = f"ms_base_{item_key}" 
@@ -297,7 +297,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             current_selection_for_this_item = st.session_state.user_chosen_base_colors_for_items.get(item_key, [])
 
             st.multiselect(
-                f"Available base colors:",
+                f"Available base colors for your selecntion, you can choose multiple:",
                 options=generic_item['available_bases'],
                 default=current_selection_for_this_item,
                 key=multiselect_key, 
@@ -306,8 +306,8 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             )
             st.markdown("---")
     
-    # --- Step 3: Review Selections (Auto-compiled) ---
-    st.header("Step 3: Review Selections")
+    # --- Step2: Review Selections (Auto-compiled) ---
+    st.header("Step2: Review Selections")
     _current_final_items = []
     for key, gen_item_data in st.session_state.matrix_selected_generic_items.items():
         if not gen_item_data['requires_base_choice']:
@@ -490,10 +490,6 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
         st.button("Generate Master Data File", key="generate_file_disabled_button_v3", disabled=True, help="Please ensure items are selected (Step 1 & 2), reviewed (Step 3), and a currency is chosen (Step 4).")
         if not st.session_state.final_items_for_download and st.session_state.matrix_selected_generic_items:
              st.warning("Please review your selections in Step 3.")
-        elif not st.session_state.matrix_selected_generic_items :
-             st.warning("Please select items in Step 1 first.")
-        elif not st.session_state.selected_currency_session:
-             st.warning("Please select a currency in Step 4 before generating the file.")
 
 
 else: 
@@ -533,8 +529,8 @@ st.markdown("""
         color: #4A5568 !important; 
         text-align: center; 
         white-space: normal; 
-        overflow-wrap: break-word; 
-        line-height: 1.2;
+        overflow-wrap:break-word; 
+        line-height: 1;
         padding: 2px;
     }
     /* Specifically target Upholstery Type headers for no-wrap */
@@ -544,13 +540,13 @@ st.markdown("""
         text-overflow: clip !important; /* Remove ellipsis */
         display: block; 
         max-width: 100%; 
-        line-height: 1.3; /* Adjust line height for wrapped text */
+        line-height: 1; /* Adjust line height for wrapped text */
     }
     div[data-testid="stCaptionContainer"] img { /* Swatch in header */
         max-height: 25px !important; 
         width: 25px !important;    
         object-fit: cover !important; /* Enforce square and cover */       
-        margin-right: 3px; 
+        margin-right:2px; 
     }
     /* Placeholder for empty swatch in header */
     .swatch-placeholder {
@@ -574,7 +570,7 @@ st.markdown("""
         color: #aaa;
     }
     .zoom-instruction {
-        font-size: 0.75em; 
+        font-size: 0.6em; 
         color: #555; 
         text-align: left; 
         padding-top: 10px; 
@@ -603,7 +599,7 @@ st.markdown("""
     hr { 
         margin-top: 0.2rem; 
         margin-bottom: 0.2rem; 
-        border-top: 1px solid #e2e8f0; 
+    
     } 
     /* Button styling for hover and active states */
     .stButton>button { /* Default button state */
