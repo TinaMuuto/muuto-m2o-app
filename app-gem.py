@@ -174,10 +174,10 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                     del st.session_state.user_chosen_base_colors_for_items[generic_item_key]
                 st.toast(f"Deselected: {prod_name} / {uph_type} / {uph_color}", icon="➖")
 
-    # Callback for base color multiselect
-    def handle_base_color_multiselect_change(item_key_for_base_select, multiselect_widget_key):
-        new_value = st.session_state[multiselect_widget_key] # Get value from session_state using widget's key
-        st.session_state.user_chosen_base_colors_for_items[item_key_for_base_select] = new_value
+    # Corrected Callback for base color multiselect
+    def handle_base_color_multiselect_change(item_key_for_base_select):
+        multiselect_widget_key = f"ms_base_{item_key_for_base_select}"
+        st.session_state.user_chosen_base_colors_for_items[item_key_for_base_select] = st.session_state[multiselect_widget_key]
 
 
     if selected_family and selected_family != DEFAULT_NO_SELECTION and 'Product Family' in df_for_display.columns:
@@ -283,7 +283,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
         item_data for key, item_data in st.session_state.matrix_selected_generic_items.items() if item_data.get('requires_base_choice')
     ]
     if items_needing_base_choice_now:
-        st.header("Step 2: Select Base Colors")
+        st.header("Step 1.1: Select Base Colors")
         for generic_item in items_needing_base_choice_now:
             item_key = generic_item['key']
             multiselect_key = f"ms_base_{item_key}" 
@@ -302,7 +302,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             st.markdown("---")
 
     # --- Step 3: Select Currency ---
-    st.header("Step 3: Select Currency")
+    st.header("Step 2: Select Currency")
     selected_currency = None 
     try:
         if not st.session_state.wholesale_prices_df.empty:
@@ -335,7 +335,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
 
 
     # --- Step 4: Generate Master Data File ---
-    st.header("Step 4: Generate Master Data File")
+    st.header("Step 3: Generate Master Data File")
     if st.button("Generate Master Data File", key="generate_file_final_button"):
         if not st.session_state.matrix_selected_generic_items: 
             st.warning("Please select at least one product combination in Step 1.")
@@ -433,8 +433,12 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                 else: st.warning("No data to generate for the file.")
             else: 
                 st.warning("No fully specified items to generate. Please complete selections in Step 1 & 2, then select a currency.")
-    # else: # This else block was for when matrix_selected_generic_items was empty
-        # st.info("Select items in Step 1 to enable file generation.") # Removed this info box
+    # else: # No initial selections made
+        # This info message is removed as per user request
+        # if selected_family and selected_family != DEFAULT_NO_SELECTION:
+        #     pass # User has selected a family, but not yet any items in the matrix
+        # else:
+        #     st.info("Select items in Step 1 to enable file generation.")
 
 
 else: 
