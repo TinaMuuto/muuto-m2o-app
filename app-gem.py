@@ -189,29 +189,38 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                     current_uph_type_header_display = None # To control display of header
                     for i, col_widget in enumerate(cols_uph_type_header):
                         if i == 0:
-                            with col_widget: st.caption("") 
+                            with col_widget: 
+                                st.caption("") 
                         else:
                             map_entry = data_column_map[i-1]
                             # Display header only if it's different from the previously displayed one
                             if map_entry['uph_type'] != current_uph_type_header_display:
-                                with col_widget: st.caption(f"**{map_entry['uph_type']}**")
+                                with col_widget: 
+                                    st.caption(f"**{map_entry['uph_type']}**")
                                 current_uph_type_header_display = map_entry['uph_type']
                             # Else, the column for this color will be under the already displayed uph_type header
 
                     cols_swatch_header = st.columns([2.5] + [1] * num_data_columns)
                     for i, col_widget in enumerate(cols_swatch_header):
-                        if i == 0: with col_widget: st.caption("")
+                        if i == 0: 
+                            with col_widget: 
+                                st.caption("")
                         else:
                             sw_url = data_column_map[i-1]['swatch']
                             with col_widget:
-                                if sw_url: st.image(sw_url, width=30)
-                                else: st.markdown("<div style='height:30px; width:30px;'></div>", unsafe_allow_html=True)
+                                if sw_url: 
+                                    st.image(sw_url, width=30)
+                                else: 
+                                    st.markdown("<div style='height:30px; width:30px;'></div>", unsafe_allow_html=True)
                     
                     cols_color_num_header = st.columns([2.5] + [1] * num_data_columns)
                     for i, col_widget in enumerate(cols_color_num_header):
-                        if i == 0: with col_widget: st.caption("")
+                        if i == 0: 
+                            with col_widget: 
+                                st.caption("")
                         else:
-                            with col_widget: st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
+                            with col_widget: 
+                                st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
                     st.markdown("---")
 
                     for prod_name in products_in_family:
