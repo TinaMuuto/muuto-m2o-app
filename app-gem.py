@@ -243,15 +243,12 @@ if files_loaded_successfully:
                             with col_widget:
                                 st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
 
-                    st.markdown("---") # This HR separates headers from product rows
+                    st.markdown("---") 
 
                     for prod_name in products_in_family:
-                        # Use vertical_alignment for the columns in this row
                         cols_product_row = st.columns([2.5] + [1] * num_data_columns, vertical_alignment="center")
                         with cols_product_row[0]:
-                            # Wrap product name in a div for consistent cell styling if needed, or rely on column alignment
-                            st.markdown(f"<div class='product-name-cell'>**{prod_name}**</div>", unsafe_allow_html=True)
-
+                            st.markdown(f"<div class='product-name-cell'>{prod_name}</div>", unsafe_allow_html=True) # Removed **
 
                         for i, col_widget in enumerate(cols_product_row[1:]):
                             current_col_uph_type_filter = data_column_map[i]['uph_type']
@@ -262,12 +259,8 @@ if files_loaded_successfully:
                                 (family_df['Upholstery Type'] == current_col_uph_type_filter) &
                                 (family_df['Upholstery Color'].astype(str).fillna("N/A") == current_col_uph_color_filter)
                             ]
-
-                            # The cell_container is the col_widget.container()
-                            # The content inside this (checkbox or grey box) will be centered by CSS
-                            # on div[data-testid="stHorizontalBlock"] > div > div[data-testid="stVerticalBlock"]
+                            
                             cell_container = col_widget.container()
-
 
                             if not item_exists_df.empty:
                                 cb_key_str = f"cb_{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ","_").replace("/","_").replace("(","").replace(")","")
@@ -289,7 +282,7 @@ if files_loaded_successfully:
         item_data for key, item_data in st.session_state.matrix_selected_generic_items.items() if item_data.get('requires_base_choice')
     ]
     if items_needing_base_choice_now:
-        st.subheader("Step 1a: Specify base colors") # Text change
+        st.subheader("Step 1a: Specify base colors") 
         for generic_item in items_needing_base_choice_now:
             item_key = generic_item['key']
             multiselect_key = f"ms_base_{item_key}"
@@ -308,7 +301,7 @@ if files_loaded_successfully:
             st.markdown("---")
 
     # --- Step 2: Review Selections ---
-    st.header("Step 2: Review selections") # Sentence case
+    st.header("Step 2: Review selections") 
     _current_final_items = []
     for key, gen_item_data in st.session_state.matrix_selected_generic_items.items():
         if not gen_item_data['requires_base_choice']:
@@ -372,7 +365,7 @@ if files_loaded_successfully:
         st.markdown("---")
 
     # --- Step 3: Select Currency ---
-    st.header("Step 3: Select currency") # Sentence case
+    st.header("Step 3: Select currency") 
     selected_currency = None
     try:
         if not st.session_state.wholesale_prices_df.empty:
@@ -403,7 +396,7 @@ if files_loaded_successfully:
 
 
     # --- Step 4: Generate Master Data File ---
-    st.header("Step 4: Generate master data file") # Sentence case
+    st.header("Step 4: Generate master data file") 
 
     def prepare_excel_for_download_final():
         if not st.session_state.final_items_for_download:
@@ -489,20 +482,20 @@ st.markdown("""
     }
     .main .block-container {
         background-color: #EFEEEB !important;
-        padding-top: 2rem; /* Add some padding at the top of the main content */
+        padding-top: 2rem; 
     }
 
-    h1, h2, h3 { /* General Header Styling */
-        text-transform: none !important; /* Override any theme-based transforms */
+    h1, h2, h3 { 
+        text-transform: none !important; 
     }
-    h1 { color: #333; } /* App Title */
-    h2 { /* Step Headers */
+    h1 { color: #333; } 
+    h2 { 
         color: #1E40AF;
         padding-bottom: 5px;
         margin-top: 30px;
         margin-bottom: 15px;
     }
-     h3 { /* Sub-step Headers like 1a */
+     h3 { 
         color: #1E40AF;
         font-size: 1.25em;
         padding-bottom: 3px;
@@ -511,35 +504,35 @@ st.markdown("""
     }
 
     /* Styling for the matrix-like headers */
-    div[data-testid="stCaptionContainer"] > div > p { /* Container for Upholstery Type and Color Number */
+    div[data-testid="stCaptionContainer"] > div > p { 
         font-weight: bold;
-        font-size: 0.8em !important; /* Slightly larger for readability */
-        color: #31333F !important; /* Standard dark text color */
+        font-size: 0.8em !important; 
+        color: #31333F !important; 
         text-align: center;
         white-space: normal;
         overflow-wrap:break-word;
-        line-height: 1.2; /* Adjusted line height */
+        line-height: 1.2; 
         padding: 2px;
     }
-    .upholstery-header { /* Specifically for Upholstery Type text */
+    .upholstery-header { 
         white-space: normal !important;
         overflow: visible !important;
         text-overflow: clip !important;
         display: block;
         max-width: 100%;
         line-height: 1.2;
-        color: #31333F !important; /* Standard dark text color */
-        text-transform: capitalize !important; /* First letter of each word capitalized */
+        color: #31333F !important; 
+        text-transform: capitalize !important; 
         font-weight: bold !important;
         font-size: 0.8em !important;
     }
     div[data-testid="stCaptionContainer"] small { /* Color numbers */
-        color: #31333F !important; /* Standard dark text color */
-        font-weight: normal !important; /* Make it normal weight to differentiate from Upholstery Type */
+        color: #31333F !important; 
+        font-weight: normal !important; 
         font-size: 0.75em !important;
     }
 
-    div[data-testid="stCaptionContainer"] img { /* Swatch in header */
+    div[data-testid="stCaptionContainer"] img { 
         max-height: 25px !important;
         width: 25px !important;
         object-fit: cover !important;
@@ -571,56 +564,91 @@ st.markdown("""
     }
 
     /* --- Matrix Row and Cell Content Alignment --- */
-    /* Product name cell styling */
     .product-name-cell {
         display: flex;
-        align-items: center; /* Vertically center product name */
-        height: 30px; /* Match the height of checkbox/grey box container */
-        padding-left: 5px; /* Optional: add some padding */
-    }
-    .product-name-cell strong { /* Target the bold text within product name */
-        color: #31333F !important; /* Standard dark text color */
+        align-items: center; 
+        height: auto; /* Allow height to adjust to content */
+        min-height: 30px; /* Ensure it's at least as tall as checkbox row */
+        line-height: 1.3; /* Adjust for two lines */
+        max-height: calc(1.3em * 2 + 6px); /* Max height for two lines + padding */
+        overflow: hidden; /* Hide overflow if more than two lines */
+        color: #31333F !important; 
+        font-weight: bold;
+        padding-right: 5px; /* Add some padding to prevent text touching edge */
     }
 
-
-    /* Container for checkbox or grey box within each matrix data cell */
     div[data-testid="stHorizontalBlock"] > div > div[data-testid="stVerticalBlock"] {
-        height: 30px !important; /* Fixed height for the entire cell content area */
+        height: 30px !important; 
         min-height: 30px !important;
         display: flex !important;
-        align-items: center !important; /* Vertically center child (checkbox or grey box) */
-        justify-content: center !important; /* Horizontally center child */
-        padding: 0 !important; /* Remove padding if it misaligns */
-        margin: 0 !important; /* Remove margin */
-
+        align-items: center !important; 
+        justify-content: center !important; 
+        padding: 0 !important; 
+        margin: 0 !important;
     }
 
     /* --- Checkbox Styling --- */
+    /* Overall container for st.checkbox to help with centering */
     div.stCheckbox {
          margin: 0 !important;
          display: flex !important;
          align-items: center !important;
          justify-content: center !important;
-         width: 100%; /* Ensure it takes full width of its small column cell */
-         height: 100%; /* Ensure it takes full height of its stVerticalBlock parent */
+         width: 100%; 
+         height: 100%; 
     }
+    /* The label element that Streamlit uses for the checkbox */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] {
-        width: 20px !important; /* Control size of the label containing the checkbox parts */
+        width: 20px !important; 
         height: 20px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
     }
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child { /* The visual square */
-        background-color: #5B4A14 !important;
-        border-color: #5B4A14 !important;
+    /* The visual square of the checkbox (span:first-child of the label) - UNCHECKED STATE */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child {
+        background-color: #FFFFFF !important; /* White background for unchecked */
+        border: 1px solid #5B4A14 !important; /* Gold border for unchecked */
         box-shadow: none !important;
-        width: 20px !important; /* Ensure the square is 20x20 */
+        width: 20px !important; 
         height: 20px !important;
         border-radius: 0.25rem !important;
     }
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child svg { /* The checkmark */
+    /* The checkmark SVG - default state (effectively hidden or very light for UNCHECKED) */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child svg {
+        fill: #FFFFFF !important; /* White fill to blend with white background (invisible) */
+    }
+
+    /* CHECKED STATE: This relies on Streamlit applying a style that changes the background of span:first-child.
+       If Streamlit's theme primary color is set to #5B4A14, this should work.
+       This rule ensures the SVG checkmark is white if the background becomes gold.
+       This specific selector targets the span if the input (which is a sibling AFTER the span) is checked.
+       This is hard to do with pure CSS if Streamlit doesn't add a class to the span or label.
+       The most reliable way is often to set the theme's primary color.
+       However, if Streamlit *does* change the background of span:first-child when checked, this will make the SVG white.
+    */
+    /* Attempting to style the CHECKED state of the box directly is difficult due to DOM order.
+       The following targets the SVG to be white, assuming the box becomes gold by Streamlit's theme. */
+    div[data-testid="stCheckbox"] input[type="checkbox"][aria-checked="true"] ~ div span:first-child svg, /* If label text div is between */
+    div[data-testid="stCheckbox"] input[type="checkbox"][aria-checked="true"] + span svg, /* If span is direct sibling after */
+    /* More general: if the span itself gets a class or style indicating checked, its SVG should be white */
+    /* For now, this is the most robust for the SVG if the box turns gold: */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > input[type="checkbox"][aria-checked="true"] ~ span:first-of-type svg { /* This selector is unlikely to work due to DOM order */
+         /* fill: white !important; */ /* This was part of previous attempts, might not be needed if the one below works */
+    }
+    /* If the span itself (the box) somehow indicates it's checked (e.g. its background becomes gold via theme) */
+    /* This rule ensures the SVG is white if the box is gold */
+     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child[style*="background-color: rgb(91, 74, 20)"] svg,
+     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child[style*="background-color: #5B4A14"] svg {
         fill: white !important;
+    }
+    /* If Streamlit adds a class to the label when checked (e.g., from user HTML snippet st-e8, st-e9 might be related) */
+    /* This is speculative without seeing live DOM changes */
+    label.st-e8.st-e9 > span:first-child { /* Example speculative selector */
+        /* background-color: #5B4A14 !important; */
+    }
+    label.st-e8.st-e9 > span:first-child svg {
+        /* fill: white !important; */
     }
 
 
@@ -633,7 +661,6 @@ st.markdown("""
         background-color: #e9ecef !important;
         border: 1px solid #ced4da !important;
         border-radius: 0.25rem !important;
-        /* Centered by its parent stVerticalBlock */
     }
 
 
@@ -649,9 +676,9 @@ st.markdown("""
 
 
     /* --- Button Styling (General and Download Button) --- */
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"],
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-secondary"],
-    div[data-testid="stDownloadButton"] > button[data-testid="stBaseButton-secondary"] {
+    /* This targets the button element directly within stDownloadButton or stButton containers */
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"],
+    div[data-testid="stButton"] button[data-testid^="stBaseButton"] {
         border: 1px solid #5B4A14 !important;
         background-color: #FFFFFF !important;
         color: #5B4A14 !important;
@@ -661,65 +688,66 @@ st.markdown("""
         border-radius: 0.25rem !important;
         transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
         font-weight: 500 !important;
-        text-transform: none !important; /* Ensure button text is not all caps */
+        text-transform: none !important; 
     }
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"] p, /* Target p tag inside button */
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-secondary"] p,
-    div[data-testid="stDownloadButton"] > button[data-testid="stBaseButton-secondary"] p {
-        color: inherit !important; /* Inherit color from button */
-        text-transform: none !important; /* Ensure button text is not all caps */
+    /* Text inside the button (often a <p> tag) */
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"] p,
+    div[data-testid="stButton"] button[data-testid^="stBaseButton"] p {
+        color: inherit !important; 
+        text-transform: none !important;
+        margin: 0 !important; /* Remove default p margins */
     }
 
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:hover,
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-secondary"]:hover,
-    div[data-testid="stDownloadButton"] > button[data-testid="stBaseButton-secondary"]:hover {
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:hover,
+    div[data-testid="stButton"] button[data-testid^="stBaseButton"]:hover {
         background-color: #5B4A14 !important;
         color: #FFFFFF !important;
         border-color: #5B4A14 !important;
     }
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:hover p,
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-secondary"]:hover p,
-    div[data-testid="stDownloadButton"] > button[data-testid="stBaseButton-secondary"]:hover p {
-        color: #FFFFFF !important; /* Text color on hover */
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:hover p,
+    div[data-testid="stButton"] button[data-testid^="stBaseButton"]:hover p {
+        color: #FFFFFF !important; 
     }
 
-
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:active,
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:focus,
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-secondary"]:active,
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-secondary"]:focus,
-    div[data-testid="stDownloadButton"] > button[data-testid="stBaseButton-secondary"]:active,
-    div[data-testid="stDownloadButton"] > button[data-testid="stBaseButton-secondary"]:focus {
-        background-color: #4A3D10 !important; /* Darker Muuto Gold */
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:active,
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:focus,
+    div[data-testid="stButton"] button[data-testid^="stBaseButton"]:active,
+    div[data-testid="stButton"] button[data-testid^="stBaseButton"]:focus {
+        background-color: #4A3D10 !important; 
         color: #FFFFFF !important;
         border-color: #4A3D10 !important;
         box-shadow: 0 0 0 0.2rem rgba(91, 74, 20, 0.4) !important;
         outline: none !important;
     }
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:active p,
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:focus p,
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-secondary"]:active p,
-    div[data-testid="stButton"] > button[data-testid="stBaseButton-secondary"]:focus p,
-    div[data-testid="stDownloadButton"] > button[data-testid="stBaseButton-secondary"]:active p,
-    div[data-testid="stDownloadButton"] > button[data-testid="stBaseButton-secondary"]:focus p {
-        color: #FFFFFF !important; /* Text color on active/focus */
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:active p,
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:focus p,
+    div[data-testid="stButton"] button[data-testid^="stBaseButton"]:active p,
+    div[data-testid="stButton"] button[data-testid^="stBaseButton"]:focus p {
+        color: #FFFFFF !important; 
     }
 
 
     small {
-        color: #718096; /* Keep this for other small text if needed, or override if specifically for color numbers */
+        /* color: #718096; This was the general rule, overridden for matrix color numbers */
         font-size:0.9em;
         display:block;
         line-height:1.1;
     }
     /* --- Multiselect Tags Styling --- */
+    /* This targets the selected tag itself */
     div[data-testid="stMultiSelect"] span[data-baseweb="tag"][aria-selected="true"] {
-        background-color: #5B4A14 !important;
+        background-color: #5B4A14 !important; /* Gold background for the pill */
+        border-radius: 0.25rem !important; /* Match other border radiuses */
+        padding-top: 0.2em !important; /* Adjust padding for better text centering */
+        padding-bottom: 0.2em !important;
     }
+    /* Text inside selected tag */
     div[data-testid="stMultiSelect"] span[data-baseweb="tag"][aria-selected="true"] > span[title] {
         color: white !important;
         font-size: 0.85em !important;
+        line-height: 1.2 !important; /* Improve vertical centering of text */
     }
+    /* Close 'x' icon SVG in selected tag */
     div[data-testid="stMultiSelect"] span[data-baseweb="tag"][aria-selected="true"] span[role="button"] svg {
         fill: white !important;
     }
