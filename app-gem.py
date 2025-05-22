@@ -529,7 +529,7 @@ st.markdown("""
     
     /* Custom styling for the checkbox itself when checked */
     div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div {
-        background-color: #5B4A14 !important; /* Updated color */
+        background-color: #5B4A14 !important; 
         border-color: #5B4A14 !important; 
     }
     div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div svg {
@@ -546,13 +546,13 @@ st.markdown("""
     .stButton>button:hover {
         border-color: #5B4A14 !important;
         color: #5B4A14 !important;
-        background-color: #f0f0f0 !important; /* Light hover background */
+        background-color: #f0f0f0 !important; 
     }
-    .stButton>button:active, .stButton>button:focus { /* :focus for when button is clicked */
+    .stButton>button:active, .stButton>button:focus { 
         border-color: #5B4A14 !important;
         color: #5B4A14 !important;
-        background-color: #e0e0e0 !important; /* Slightly darker active background */
-        box-shadow: 0 0 0 0.2rem rgba(91, 74, 20, 0.5) !important; /* Focus ring with new color */
+        background-color: #e0e0e0 !important; 
+        box-shadow: 0 0 0 0.2rem rgba(91, 74, 20, 0.5) !important; 
     }
     small { 
         color: #718096; 
@@ -562,7 +562,7 @@ st.markdown("""
     } 
     /* Styling for selected items in st.multiselect for base colors */
     div[data-testid="stMultiSelect"] div[data-baseweb="tag"][aria-selected="true"] {
-        background-color: #5B4A14 !important; /* Updated pill color */
+        background-color: #5B4A14 !important; 
     }
     div[data-testid="stMultiSelect"] div[data-baseweb="tag"][aria-selected="true"] > div { 
         color: white !important;
@@ -599,8 +599,8 @@ st.markdown("""
     div[data-testid="stSelectbox"] div[data-baseweb="select"][aria-expanded="true"] > div:first-child,
     div[data-testid="stMultiSelect"] div[data-baseweb="input"]:focus-within, 
     div[data-testid="stMultiSelect"] div[aria-expanded="true"] { 
-        border-color: #5B4A14 !important; /* Updated focus color */
-        box-shadow: 0 0 0 1px #5B4A14 !important; /* Updated focus shadow */
+        border-color: #5B4A14 !important; 
+        box-shadow: 0 0 0 1px #5B4A14 !important; 
     }
 </style>
 """, unsafe_allow_html=True)
