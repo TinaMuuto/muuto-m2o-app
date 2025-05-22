@@ -231,7 +231,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                             with col_widget:
                                 if sw_url: 
                                     st.image(sw_url, width=30)
-                                    if i == 1: # Add instruction next to the very first swatch
+                                    if i == 1: 
                                         st.caption("<small>(Click to zoom)</small>", unsafe_allow_html=True)
                                 else: 
                                     st.markdown("<div class='swatch-placeholder'></div>", unsafe_allow_html=True)
@@ -244,7 +244,6 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                         else:
                             with col_widget: 
                                 st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
-                    # st.markdown("---") # Removed this separator
 
                     for prod_name in products_in_family:
                         cols_product_row = st.columns([2.5] + [1] * num_data_columns)
@@ -530,8 +529,8 @@ st.markdown("""
     
     /* Custom styling for the checkbox itself when checked */
     div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div {
-        background-color: #9A5E18 !important; 
-        border-color: #9A5E18 !important; 
+        background-color: #5B4A14 !important; /* Updated color */
+        border-color: #5B4A14 !important; 
     }
     div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div svg {
         fill: white !important; 
@@ -543,9 +542,17 @@ st.markdown("""
         margin-bottom: 0.2rem; 
         border-top: 1px solid #e2e8f0; 
     } 
-    .stButton>button { 
-        font-size: 0.9em; 
-        padding: 0.3em 0.7em; 
+    /* Button styling for hover and active states */
+    .stButton>button:hover {
+        border-color: #5B4A14 !important;
+        color: #5B4A14 !important;
+        background-color: #f0f0f0 !important; /* Light hover background */
+    }
+    .stButton>button:active, .stButton>button:focus { /* :focus for when button is clicked */
+        border-color: #5B4A14 !important;
+        color: #5B4A14 !important;
+        background-color: #e0e0e0 !important; /* Slightly darker active background */
+        box-shadow: 0 0 0 0.2rem rgba(91, 74, 20, 0.5) !important; /* Focus ring with new color */
     }
     small { 
         color: #718096; 
@@ -555,7 +562,7 @@ st.markdown("""
     } 
     /* Styling for selected items in st.multiselect for base colors */
     div[data-testid="stMultiSelect"] div[data-baseweb="tag"][aria-selected="true"] {
-        background-color: #9A5E18 !important; 
+        background-color: #5B4A14 !important; /* Updated pill color */
     }
     div[data-testid="stMultiSelect"] div[data-baseweb="tag"][aria-selected="true"] > div { 
         color: white !important;
@@ -592,8 +599,8 @@ st.markdown("""
     div[data-testid="stSelectbox"] div[data-baseweb="select"][aria-expanded="true"] > div:first-child,
     div[data-testid="stMultiSelect"] div[data-baseweb="input"]:focus-within, 
     div[data-testid="stMultiSelect"] div[aria-expanded="true"] { 
-        border-color: #9A5E18 !important;
-        box-shadow: 0 0 0 1px #9A5E18 !important;
+        border-color: #5B4A14 !important; /* Updated focus color */
+        box-shadow: 0 0 0 1px #5B4A14 !important; /* Updated focus shadow */
     }
 </style>
 """, unsafe_allow_html=True)
