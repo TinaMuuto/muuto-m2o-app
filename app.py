@@ -52,7 +52,8 @@ st.subheader("Step 2: Select color combinations")
 cols = st.columns([2] + [1 for _ in range(len(textiles))])
 cols[0].markdown("**Product**")
 for idx, (_, row) in enumerate(textiles.iterrows()):
-    cols[idx+1].image(row["Image URL swatch"], width=40, caption=row["Upholstery Color"])
+    cols[idx+1].markdown(f"**{row['Upholstery Color']}**")
+    cols[idx+1].image(row["Image URL swatch"], width=40)
 
 product_labels = family_data["Product Label"].unique()
 for prod in product_labels:
@@ -68,7 +69,8 @@ for prod in product_labels:
         if not match_rows.empty:
             item_base_preview = match_rows[["Item No", "Base Color"]].dropna()
             if not item_base_preview.empty:
-                checkbox_key = f"{prod}_{tex_row['Upholstery Color']}_pre"
+                item_no = item_base_preview["Item No"].values[0]
+                checkbox_key = f"{prod}_{tex_row['Upholstery Color']}_{item_no}"
                 if st.checkbox("Select", key=checkbox_key):
                     entry = {
                         "Product Label": prod,
@@ -140,7 +142,7 @@ if st.session_state.final_selections:
         output.seek(0)
 
         st.download_button(
-            label="📥 Download masterdata file",
+            label="\ud83d\udcc5 Download masterdata file",
             data=output,
             file_name=f"Muuto_matrix_output_{selected_currency}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
