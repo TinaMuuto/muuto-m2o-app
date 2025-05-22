@@ -226,13 +226,12 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                     for i, col_widget in enumerate(cols_swatch_header):
                         if i == 0: 
                             with col_widget: 
-                                st.caption("")
+                                st.markdown("<div class='zoom-instruction'>(Click swatch in header to zoom)</div>", unsafe_allow_html=True)
                         else:
                             sw_url = data_column_map[i-1]['swatch']
                             with col_widget:
                                 if sw_url: 
                                     st.image(sw_url, width=30)
-                                # Removed the (Click to zoom) from here
                                 else: 
                                     st.markdown("<div class='swatch-placeholder'></div>", unsafe_allow_html=True)
                     
@@ -245,17 +244,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                             with col_widget: 
                                 st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
                     
-                    # Add "(Click swatch to zoom)" instruction row
-                    if num_data_columns > 0:
-                        zoom_instr_cols = st.columns([2.5] + [1] * num_data_columns) # Match table structure
-                        with zoom_instr_cols[0]: # Empty space under "Product"
-                            pass 
-                        # Place the instruction aligned with the start of swatch columns or spanning a few
-                        with zoom_instr_cols[1]: # Align with the first swatch column
-                             st.markdown("<div style='font-size: 0.75em; color: #555; text-align: left; padding-top: 5px;'>(Click swatch in header to zoom)</div>", unsafe_allow_html=True)
-
-
-                    st.markdown("---") # Separator before product rows
+                    st.markdown("---") 
 
                     for prod_name in products_in_family:
                         cols_product_row = st.columns([2.5] + [1] * num_data_columns)
@@ -538,6 +527,13 @@ st.markdown("""
         justify-content: center;
         font-size: 0.8em;
         color: #aaa;
+    }
+    .zoom-instruction {
+        font-size: 0.75em; 
+        color: #555; 
+        text-align: right; /* Align to the right within its column */
+        padding-top: 10px; /* Align with swatch images */
+        padding-right: 5px; /* Some padding from the edge */
     }
     
     /* Custom styling for the checkbox itself when checked */
