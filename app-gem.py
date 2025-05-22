@@ -106,12 +106,8 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
     
     st.header("Trin 1: Vælg Produkt Kombinationer (Produkt / Tekstil / Farve)")
     # Search field removed
-    # search_query = st.text_input("Søg på Produkt Familie eller Produkt Navn:", value=st.session_state.search_query_session, key="search_field")
-    # st.session_state.search_query_session = search_query
-    # search_query_lower = search_query.lower().strip()
 
     df_for_display = st.session_state.raw_df.copy()
-    # Filtering based on search_query_lower is removed
 
     available_families_in_view = [DEFAULT_NO_SELECTION] + sorted(df_for_display['Product Family'].dropna().unique()) if 'Product Family' in df_for_display.columns else [DEFAULT_NO_SELECTION]
     if st.session_state.selected_family_session not in available_families_in_view: 
@@ -166,7 +162,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             products_in_family = sorted(family_df['Product Display Name'].dropna().unique())
             upholstery_types_in_family = sorted(family_df['Upholstery Type'].dropna().unique())
 
-            if not products_in_family: st.info(f"Ingen produkter i familien: {selected_family}") # Changed from st.info to be less intrusive
+            if not products_in_family: st.info(f"Ingen produkter i familien: {selected_family}") 
             elif not upholstery_types_in_family: st.info(f"Ingen tekstilfamilier for produktfamilien: {selected_family}")
             else:
                 header_upholstery_types = ["Produkt"]
@@ -193,27 +189,36 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                     current_uph_type_header_display = None 
                     for i, col_widget in enumerate(cols_uph_type_header):
                         if i == 0:
-                            with col_widget: st.caption("") 
+                            with col_widget: 
+                                st.caption("") 
                         else:
                             map_entry = data_column_map[i-1]
                             if map_entry['uph_type'] != current_uph_type_header_display:
-                                with col_widget: st.caption(f"**{map_entry['uph_type']}**")
+                                with col_widget: 
+                                    st.caption(f"**{map_entry['uph_type']}**")
                                 current_uph_type_header_display = map_entry['uph_type']
                             
                     cols_swatch_header = st.columns([2.5] + [1] * num_data_columns)
                     for i, col_widget in enumerate(cols_swatch_header):
-                        if i == 0: with col_widget: st.caption("")
+                        if i == 0: 
+                            with col_widget: 
+                                st.caption("")
                         else:
                             sw_url = data_column_map[i-1]['swatch']
                             with col_widget:
-                                if sw_url: st.image(sw_url, width=30)
-                                else: st.markdown("<div style='height:30px; width:30px;'></div>", unsafe_allow_html=True)
+                                if sw_url: 
+                                    st.image(sw_url, width=30)
+                                else: 
+                                    st.markdown("<div style='height:30px; width:30px;'></div>", unsafe_allow_html=True)
                     
                     cols_color_num_header = st.columns([2.5] + [1] * num_data_columns)
                     for i, col_widget in enumerate(cols_color_num_header):
-                        if i == 0: with col_widget: st.caption("")
+                        if i == 0: 
+                            with col_widget: 
+                                st.caption("")
                         else:
-                            with col_widget: st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
+                            with col_widget: 
+                                st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
                     st.markdown("---")
 
                     for prod_name in products_in_family:
@@ -339,12 +344,9 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
         if st.button("Generer Masterdata Fil", key="generate_file") and selected_currency:
             output_data = []
             
-            # Create dynamic column names for price based on selected currency
             ws_price_col_name_dynamic = f"Wholesale price ({selected_currency})"
             rt_price_col_name_dynamic = f"Retail price ({selected_currency})"
 
-            # Prepare the final list of column names for the output Excel
-            # Start with the template columns, then replace/ensure price columns with currency
             master_template_columns_final_output = []
             original_ws_col_found = False
             original_rt_col_found = False
@@ -359,16 +361,11 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                 else:
                     master_template_columns_final_output.append(col)
             
-            # If original price columns weren't in template but were added to template_cols, ensure dynamic ones are present
             if not original_ws_col_found and "Wholesale price" in st.session_state.template_cols:
-                 # This case means "Wholesale price" was added to template_cols because it was missing from the file.
-                 # We need to ensure the dynamic version is in the output list.
                  if ws_price_col_name_dynamic not in master_template_columns_final_output:
-                    # Try to insert it where "Wholesale price" would have been, or append
                     try:
                         idx = st.session_state.template_cols.index("Wholesale price")
                         master_template_columns_final_output.insert(idx, ws_price_col_name_dynamic)
-                        # Remove the placeholder if it was just added and not replaced
                         if "Wholesale price" in master_template_columns_final_output and master_template_columns_final_output.count("Wholesale price") > 0 :
                              master_template_columns_final_output.remove("Wholesale price")
                     except ValueError:
@@ -385,7 +382,6 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                     except ValueError:
                         master_template_columns_final_output.append(rt_price_col_name_dynamic)
             
-            # Ensure no duplicates if somehow original and dynamic names are both present
             master_template_columns_final_output = sorted(set(master_template_columns_final_output), key=master_template_columns_final_output.index)
 
 
@@ -396,20 +392,15 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                 if not item_data_row_series_df.empty:
                     item_data_row_series = item_data_row_series_df.iloc[0]
                     output_row_dict = {}
-                    for col_template in master_template_columns_final_output: # Use the final list of output columns
-                        # Skip the dynamic price columns here, they are added below
+                    for col_template in master_template_columns_final_output: 
                         if col_template == ws_price_col_name_dynamic or col_template == rt_price_col_name_dynamic:
                             continue
-                        # For other columns, get data from raw_df if it exists
                         if col_template in item_data_row_series.index: 
                             output_row_dict[col_template] = item_data_row_series[col_template]
                         else: 
-                            # If a column from template is not in raw_df (e.g. it was one of the original price col names)
-                            # and it's not a dynamic price col, set to None.
-                            if col_template not in ["Wholesale price", "Retail price"]: # Avoid adding old price col names
+                            if col_template not in ["Wholesale price", "Retail price"]: 
                                 output_row_dict[col_template] = None 
                     
-                    # Add dynamically named price columns
                     if not st.session_state.wholesale_prices_df.empty:
                         ws_price_row_df = st.session_state.wholesale_prices_df[st.session_state.wholesale_prices_df.iloc[:, 0].astype(str) == str(article_no_to_find)]
                         if not ws_price_row_df.empty and selected_currency in ws_price_row_df.columns:
@@ -427,7 +418,7 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                     output_data.append(output_row_dict)
                 else: st.warning(f"Data for Vare Nr: {item_no_to_find} ikke fundet.")
             if output_data:
-                output_df = pd.DataFrame(output_data, columns=master_template_columns_final_output) # Use the final dynamic column list
+                output_df = pd.DataFrame(output_data, columns=master_template_columns_final_output) 
                 output_excel_buffer = io.BytesIO()
                 with pd.ExcelWriter(output_excel_buffer, engine='xlsxwriter') as writer: output_df.to_excel(writer, index=False, sheet_name='Masterdata Output')
                 output_excel_buffer.seek(0)
@@ -437,12 +428,8 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
     
     elif not st.session_state.matrix_selected_generic_items and not st.session_state.final_items_for_download:
         if selected_family and selected_family != DEFAULT_NO_SELECTION:
-            # If a family is selected but no items chosen yet, don't show "Foretag valg"
             pass
-        # else: # No family selected yet, and no items
-            # This info message is removed as per user request
-            # st.info("Foretag valg i Trin 1 for at fortsætte.") 
-            pass
+        pass
 
 
 else: 
