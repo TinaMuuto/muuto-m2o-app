@@ -528,11 +528,13 @@ st.markdown("""
     }
     
     /* Custom styling for the checkbox itself when checked */
-    div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div[data-testid="stTickBar"] > div[data-testid="stTickSquare"] {
+    /* Targeting the visual square of the checkbox */
+    div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div div[data-testid="stTickSquare"] {
         background-color: #5B4A14 !important; 
         border-color: #5B4A14 !important; 
     }
-    div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div[data-testid="stTickBar"] > div[data-testid="stTickSquare"] svg {
+    /* Targeting the checkmark SVG */
+    div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div div[data-testid="stTickSquare"] svg {
         fill: white !important; 
     }
 
@@ -577,7 +579,7 @@ st.markdown("""
     div[data-testid="stTextInput"] input, 
     div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:first-child,
     div[data-testid="stMultiSelect"] div[data-baseweb="input"],
-    div[data-testid="stMultiSelect"] > div > div[data-baseweb="select"] > div:first-child { /* More specific for multiselect main box */
+    div[data-testid="stMultiSelect"] > div > div[data-baseweb="select"] > div:first-child { 
         background-color: #FFFFFF !important;
         color: #000000 !important;
         border: 1px solid #CCCCCC !important; 
@@ -592,7 +594,7 @@ st.markdown("""
     }
      /* Text color for selected value in dropdown when not expanded */
     div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:first-child > div > div,
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div:first-child > div > div { /* For multiselect placeholder text */
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div:first-child > div > div { 
          color: #000000 !important;
     }
 
