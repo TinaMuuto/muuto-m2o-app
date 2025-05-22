@@ -61,12 +61,10 @@ This tool simplifies selecting MTO products and generating the data you need for
     * Select your desired product, upholstery, and color combinations directly in the matrix. You can easily switch product families to add more items to your overall selection.
 —   **Specify Base Colors (if applicable):**
     * For items where multiple base colors are available, you can select one or more options using the multiselect feature.
-—   **Confirm & Review Selections:**
-    * Confirm your choices and review the final list of configured products. You can remove items from this list if needed.
 —   **Select Currency:**
     * Choose your preferred currency for pricing.
 —   **Generate Master Data File:**
-    * Generate and download an Excel file containing all master data for your selected items.
+    * After making your selections and choosing a currency, generate and download an Excel file containing all master data for your selected items.
 """)
 
 # --- Initialize session state variables ---
@@ -177,8 +175,8 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                 st.toast(f"Deselected: {prod_name} / {uph_type} / {uph_color}", icon="➖")
 
     # Callback for base color multiselect
-    def handle_base_color_multiselect_change(item_key_for_base_select, multiselect_widget_key):
-        st.session_state.user_chosen_base_colors_for_items[item_key_for_base_select] = st.session_state[multiselect_widget_key]
+    def handle_base_color_multiselect_change(new_value, item_key_for_base_select): # Corrected signature
+        st.session_state.user_chosen_base_colors_for_items[item_key_for_base_select] = new_value
 
 
     if selected_family and selected_family != DEFAULT_NO_SELECTION and 'Product Family' in df_for_display.columns:
@@ -292,91 +290,20 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
             
             current_selection_for_this_item = st.session_state.user_chosen_base_colors_for_items.get(item_key, [])
 
+            # The value of the multiselect is implicitly passed as the first argument to on_change
             st.multiselect(
                 f"Available base colors:",
                 options=generic_item['available_bases'],
                 default=current_selection_for_this_item,
                 key=multiselect_key, 
                 on_change=handle_base_color_multiselect_change, 
-                args=(item_key, multiselect_widget_key) 
+                args=(item_key,) # Pass item_key as an additional argument
             )
             st.markdown("---")
 
-    # --- Step 3: Review Selections & Choose Currency ---
-    st.header("Step 3: Review Selections & Choose Currency")
-    # Build the preliminary list for review
-    preliminary_final_items = []
-    for key, gen_item_data in st.session_state.matrix_selected_generic_items.items():
-        if not gen_item_data['requires_base_choice']:
-            if gen_item_data.get('item_no_if_single_base') is not None:
-                preliminary_final_items.append({
-                    "description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']}" + (f" / Base: {gen_item_data['resolved_base_if_single']}" if pd.notna(gen_item_data['resolved_base_if_single']) else ""),
-                    "item_no": gen_item_data['item_no_if_single_base'],
-                    "article_no": gen_item_data['article_no_if_single_base'],
-                    "key_in_matrix": key # To help with removal
-                })
-        else:
-            selected_bases_for_this = st.session_state.user_chosen_base_colors_for_items.get(key, [])
-            if not selected_bases_for_this: # If requires base choice but none selected, don't add to review yet
-                st.caption(f"Note: Base color needed for {gen_item_data['product']} ({gen_item_data['upholstery_type']}/{gen_item_data['upholstery_color']}).")
-                continue
-            for bc in selected_bases_for_this:
-                specific_item_df = st.session_state.raw_df[
-                    (st.session_state.raw_df['Product Family'] == gen_item_data['family']) &
-                    (st.session_state.raw_df['Product Display Name'] == gen_item_data['product']) &
-                    (st.session_state.raw_df['Upholstery Type'].fillna("N/A") == gen_item_data['upholstery_type']) &
-                    (st.session_state.raw_df['Upholstery Color'].astype(str).fillna("N/A") == gen_item_data['upholstery_color']) &
-                    (st.session_state.raw_df['Base Color Cleaned'].fillna("N/A") == bc)
-                ]
-                if not specific_item_df.empty:
-                    actual_item = specific_item_df.iloc[0]
-                    preliminary_final_items.append({
-                        "description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']} / Base: {bc}",
-                        "item_no": actual_item['Item No'],
-                        "article_no": actual_item['Article No'],
-                        "key_in_matrix": key, # To help with removal
-                        "chosen_base": bc
-                    })
-
-    # Deduplicate preliminary list (in case of re-runs or complex interactions)
-    temp_prelim_list = []
-    seen_prelim_item_nos_desc = set() # Use a more unique key for preliminary review
-    for item in preliminary_final_items:
-        # Create a unique identifier for this specific configuration including base color if applicable
-        unique_config_id = f"{item['item_no']}_{item.get('chosen_base', 'single_base')}"
-        if unique_config_id not in seen_prelim_item_nos_desc:
-            temp_prelim_list.append(item)
-            seen_prelim_item_nos_desc.add(unique_config_id)
-    preliminary_final_items = temp_prelim_list
-
-
-    if preliminary_final_items:
-        st.markdown("**Current Selections for Download:**")
-        for i, combo in enumerate(preliminary_final_items):
-            col1, col2 = st.columns([0.9, 0.1])
-            col1.write(f"{i+1}. {combo['description']} (Item: {combo['item_no']})")
-            if col2.button(f"Remove", key=f"prelim_remove_{combo['key_in_matrix']}_{combo.get('chosen_base', 'single_base')}_{i}"):
-                # Logic to remove from matrix_selected_generic_items or user_chosen_base_colors_for_items
-                original_key = combo['key_in_matrix']
-                if original_key in st.session_state.matrix_selected_generic_items:
-                    if st.session_state.matrix_selected_generic_items[original_key]['requires_base_choice'] and 'chosen_base' in combo:
-                        # Remove specific base color choice
-                        if original_key in st.session_state.user_chosen_base_colors_for_items:
-                            st.session_state.user_chosen_base_colors_for_items[original_key].remove(combo['chosen_base'])
-                            if not st.session_state.user_chosen_base_colors_for_items[original_key]: # If no bases left, deselect generic item
-                                del st.session_state.matrix_selected_generic_items[original_key]
-                    else: # It was a simple item or the last base color was removed
-                        del st.session_state.matrix_selected_generic_items[original_key]
-                st.toast(f"Removed: {combo['description']}", icon="🗑️")
-                st.rerun()
-        st.markdown("---")
-    elif st.session_state.matrix_selected_generic_items: # Items selected in matrix but require base color selection
-        st.info("Please select base colors in Step 2 for items marked 'Flere Valg' or confirm selections.")
-    else:
-        st.info("No items selected yet in Step 1.")
-
-
-    selected_currency = None
+    # --- Step 3: Select Currency ---
+    st.header("Step 3: Select Currency")
+    selected_currency = None 
     try:
         if not st.session_state.wholesale_prices_df.empty:
             article_no_col_name_ws = st.session_state.wholesale_prices_df.columns[0]
@@ -406,16 +333,55 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
         st.error(f"Error with currency selection: {e}")
         selected_currency = None
 
+
     # --- Step 4: Generate Master Data File ---
     st.header("Step 4: Generate Master Data File")
     if st.button("Generate Master Data File", key="generate_file_final_button"):
-        if not preliminary_final_items: # Check if the list to be downloaded is empty
-            st.warning("No items have been fully selected (including base colors where required). Please make your selections in Step 1 & 2.")
+        if not st.session_state.matrix_selected_generic_items: # Check if any initial selections were made
+            st.warning("Please select at least one product combination in Step 1.")
         elif not selected_currency:
             st.warning("Please select a currency in Step 3 before generating the file.")
         else:
-            # Use the already processed preliminary_final_items as the basis for final_items_for_download
-            st.session_state.final_items_for_download = preliminary_final_items.copy()
+            # Process selections to build final_items_for_download
+            st.session_state.final_items_for_download = [] 
+            for key, gen_item_data in st.session_state.matrix_selected_generic_items.items():
+                if not gen_item_data['requires_base_choice']:
+                    if gen_item_data.get('item_no_if_single_base') is not None: 
+                        st.session_state.final_items_for_download.append({
+                            "description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']}" + (f" / Base: {gen_item_data['resolved_base_if_single']}" if pd.notna(gen_item_data['resolved_base_if_single']) else ""),
+                            "item_no": gen_item_data['item_no_if_single_base'],
+                            "article_no": gen_item_data['article_no_if_single_base']
+                        })
+                else:
+                    selected_bases_for_this = st.session_state.user_chosen_base_colors_for_items.get(key, [])
+                    if not selected_bases_for_this:
+                        st.warning(f"No base color selected for {gen_item_data['product']} ({gen_item_data['upholstery_type']}/{gen_item_data['upholstery_color']}). This item will be skipped.")
+                        continue
+                    for bc in selected_bases_for_this:
+                        specific_item_df = st.session_state.raw_df[
+                            (st.session_state.raw_df['Product Family'] == gen_item_data['family']) &
+                            (st.session_state.raw_df['Product Display Name'] == gen_item_data['product']) &
+                            (st.session_state.raw_df['Upholstery Type'].fillna("N/A") == gen_item_data['upholstery_type']) &
+                            (st.session_state.raw_df['Upholstery Color'].astype(str).fillna("N/A") == gen_item_data['upholstery_color']) &
+                            (st.session_state.raw_df['Base Color Cleaned'].fillna("N/A") == bc)
+                        ]
+                        if not specific_item_df.empty:
+                            actual_item = specific_item_df.iloc[0]
+                            st.session_state.final_items_for_download.append({
+                                "description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']} / Base: {bc}",
+                                "item_no": actual_item['Item No'],
+                                "article_no": actual_item['Article No']
+                            })
+                        else:
+                            st.error(f"ERROR: Could not find item for {gen_item_data['product']} ({gen_item_data['upholstery_type']}/{gen_item_data['upholstery_color']}) with base {bc}. Check data.")
+            
+            final_list_unique = []
+            seen_item_nos_final = set()
+            for item in st.session_state.final_items_for_download:
+                if item['item_no'] not in seen_item_nos_final:
+                    final_list_unique.append(item)
+                    seen_item_nos_final.add(item['item_no'])
+            st.session_state.final_items_for_download = final_list_unique
             
             if st.session_state.final_items_for_download:
                 output_data = []
@@ -461,11 +427,12 @@ if files_loaded_successfully and all(df is not None for df in [st.session_state.
                     output_excel_buffer = io.BytesIO()
                     with pd.ExcelWriter(output_excel_buffer, engine='xlsxwriter') as writer: output_df.to_excel(writer, index=False, sheet_name='Masterdata Output')
                     output_excel_buffer.seek(0)
-                    st.download_button(label="Download Master Data File Now", data=output_excel_buffer, file_name=f"masterdata_output_{selected_currency.replace(' ', '_').replace('.', '')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="direct_download_button_final")
+                    # Provide download button directly
+                    st.download_button(label="Download Master Data File Now", data=output_excel_buffer, file_name=f"masterdata_output_{selected_currency.replace(' ', '_').replace('.', '')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="direct_download_button_final_step")
                     st.success("Master data file generated and ready for download!")
                 else: st.warning("No data to generate for the file.")
-            else: # No items in final_items_for_download
-                st.warning("No fully specified items to generate. Please complete selections in Step 1 & 2.")
+            else: 
+                st.warning("No fully specified items to generate. Please complete selections in Step 1 & 2, then select a currency.")
     else:
         st.info("Select items in Step 1 to enable file generation.")
 
@@ -555,15 +522,14 @@ st.markdown("""
     }
     
     /* Custom styling for the checkbox itself when checked */
-    /* More specific selector to override Streamlit's default theme */
     label[data-testid="stCheckbox"] input[type="checkbox"]:checked + div {
         background-color: #5B4A14 !important; 
         border-color: #5B4A14 !important;
     }
-    label[data-testid="stCheckbox"] input[type="checkbox"]:checked + div svg {
+    label[data-testid="stCheckbox"] input[type="checkbox"]:checked + div svg { /* Checkmark color */
         fill: white !important; 
     }
-    /* For the little square inside the checkbox tick bar */
+    /* For the little square inside the checkbox tick bar - this is often the one showing the theme color */
     label[data-testid="stCheckbox"] input[type="checkbox"]:checked + div[data-testid="stTickBar"] > div[data-testid="stTickSquare"] {
         background-color: #5B4A14 !important; 
         border-color: #5B4A14 !important; 
@@ -592,9 +558,9 @@ st.markdown("""
     .stButton>button:active, .stButton>button:focus, .stButton>button:focus-visible { 
         border-color: #5B4A14 !important;
         color: white !important; 
-        background-color: #4A3D10 !important; /* Slightly darker for active/focus */
+        background-color: #4A3D10 !important; 
         box-shadow: 0 0 0 0.2rem rgba(91, 74, 20, 0.5) !important; 
-        outline: 2px solid #5B4A14 !important; /* Ensure focus outline is the desired color */
+        outline: 2px solid #5B4A14 !important; 
         outline-offset: 2px !important;
     }
     small { 
