@@ -440,12 +440,12 @@ if files_loaded_successfully:
         if not items_by_family_for_base_step:
             st.info("No selected items currently require base color specification.")
         else:
-            for family_name_for_base, items_in_this_family for_base in items_by_family_for_base_step.items():
+            for family_name_for_base, items_in_this_family_for_base in items_by_family_for_base_step.items(): # Corrected variable name
                 st.markdown(f"#### {family_name_for_base}")
 
                 # Determine all unique base colors available for *this family group*
                 unique_bases_for_family_group = set()
-                for item_in_fam in items_in_this_family for_base:
+                for item_in_fam in items_in_this_family_for_base: # Corrected variable name
                     unique_bases_for_family_group.update(item_in_fam['available_bases'])
                 
                 sorted_unique_bases_for_family_group = sorted(list(unique_bases_for_family_group))
@@ -455,7 +455,6 @@ if files_loaded_successfully:
                 else:
                     st.markdown("<small>Apply specific base color to all applicable products in this family:</small>", unsafe_allow_html=True)
                     # Create checkboxes for each unique base color in this family group
-                    # Use 2 columns for these checkboxes for better layout if many base colors
                     num_base_cols = 2 if len(sorted_unique_bases_for_family_group) > 3 else 1 
                     base_color_cols = st.columns(num_base_cols)
                     col_idx = 0
@@ -463,32 +462,29 @@ if files_loaded_successfully:
                         with base_color_cols[col_idx % num_base_cols]:
                             family_base_cb_key = f"fam_base_all_{family_name_for_base}_{base_color_option}".replace(" ","_")
                             
-                            # Determine if this base_color_option is selected for ALL applicable items in this family
                             is_this_base_selected_for_all_applicable_in_fam = True
                             num_applicable_for_this_base = 0
-                            for item_in_fam_check in items_in_this_family for_base:
+                            for item_in_fam_check in items_in_this_family_for_base: # Corrected variable name
                                 if base_color_option in item_in_fam_check['available_bases']:
                                     num_applicable_for_this_base +=1
                                     chosen_bases_for_item = st.session_state.user_chosen_base_colors_for_items.get(item_in_fam_check['key'], [])
                                     if base_color_option not in chosen_bases_for_item:
                                         is_this_base_selected_for_all_applicable_in_fam = False
                                         break
-                            if num_applicable_for_this_base == 0: # If no items can even have this base color
+                            if num_applicable_for_this_base == 0: 
                                 is_this_base_selected_for_all_applicable_in_fam = False
 
-
-                            if num_applicable_for_this_base > 0: # Only show checkbox if it applies to at least one item
+                            if num_applicable_for_this_base > 0: 
                                 st.checkbox(f"{base_color_option}", 
                                             value=is_this_base_selected_for_all_applicable_in_fam, 
                                             key=family_base_cb_key,
                                             on_change=handle_family_base_color_select_all_toggle,
-                                            args=(family_name_for_base, base_color_option, items_in_this_family for_base, family_base_cb_key),
+                                            args=(family_name_for_base, base_color_option, items_in_this_family_for_base, family_base_cb_key), # Corrected variable name
                                             help=f"Apply/Remove '{base_color_option}' for all applicable products in {family_name_for_base}.")
                         col_idx +=1
-                    st.markdown("---") # Separator after family-level base selectors
+                    st.markdown("---") 
 
-                # List individual products within this family for base color selection
-                for generic_item in items_in_this_family for_base:
+                for generic_item in items_in_this_family_for_base: # Corrected variable name
                     item_key = generic_item['key']
                     multiselect_key = f"ms_base_{item_key}"
                     
@@ -499,11 +495,11 @@ if files_loaded_successfully:
                         options=generic_item['available_bases'],
                         default=st.session_state.user_chosen_base_colors_for_items.get(item_key, []),
                         key=multiselect_key,
-                        on_change=handle_base_color_multiselect_change, # Simple callback
+                        on_change=handle_base_color_multiselect_change, 
                         args=(item_key,)
                     )
-                    st.markdown("---") # Separator between items
-                st.markdown("---") # Separator between families
+                    st.markdown("---") 
+                st.markdown("---") 
     
     # --- Step 3: Review Selections ---
     st.header("Step 3: Review selections")
@@ -554,15 +550,10 @@ if files_loaded_successfully:
                                 st.session_state.user_chosen_base_colors_for_items[original_matrix_key].remove(chosen_base_to_remove)
                                 if not st.session_state.user_chosen_base_colors_for_items[original_matrix_key]:
                                     del st.session_state.user_chosen_base_colors_for_items[original_matrix_key] 
-                                    # Only delete from matrix_selected_generic_items if NO bases are selected for an item that requires base choice
-                                    # And if all its base choices were removed via this button.
-                                    # This logic might need refinement if a generic item should persist even with no bases selected yet.
-                                    # For now, if all chosen bases are removed, and it requires a choice, it's effectively deselected.
-                                    if not st.session_state.user_chosen_base_colors_for_items.get(original_matrix_key): # Check if list is now empty or key gone
+                                    if not st.session_state.user_chosen_base_colors_for_items.get(original_matrix_key): 
                                          del st.session_state.matrix_selected_generic_items[original_matrix_key]
-                    else: # Item did not require base choice, or it's a single base item
+                    else: 
                         del st.session_state.matrix_selected_generic_items[original_matrix_key]
-                        # Clean up if it was mistakenly in user_chosen_base_colors_for_items
                         if original_matrix_key in st.session_state.user_chosen_base_colors_for_items:
                              del st.session_state.user_chosen_base_colors_for_items[original_matrix_key]
                 st.session_state.final_items_for_download.pop(i)
@@ -609,14 +600,12 @@ if files_loaded_successfully:
                 item_series = item_data_df.iloc[0]
                 row_dict = {col: item_series.get(col) for col in final_output_cols if col not in [ws_price_col_dyn, rt_price_col_dyn]}
                 
-                # Wholesale Price
                 if not ws_prices.empty:
                     article_col_ws = ws_prices.columns[0]
                     price_df = ws_prices[ws_prices[article_col_ws].astype(str) == str(article_no)]
                     row_dict[ws_price_col_dyn] = price_df.iloc[0][current_selected_currency_for_dl] if not price_df.empty and current_selected_currency_for_dl in price_df.columns and pd.notna(price_df.iloc[0][current_selected_currency_for_dl]) else "Price Not Found"
                 else: row_dict[ws_price_col_dyn] = "Wholesale Matrix Empty"
                 
-                # Retail Price
                 if not rt_prices.empty:
                     article_col_rt = rt_prices.columns[0]
                     price_df = rt_prices[rt_prices[article_col_rt].astype(str) == str(article_no)]
@@ -672,9 +661,9 @@ st.markdown("""
         text-align: right; 
         padding-right: 5px; 
         font-weight:bold;
-        display: flex; /* Added for vertical alignment */
-        align-items: center; /* Vertically align text with checkbox */
-        height: 100%; /* Ensure it takes full cell height */
+        display: flex; 
+        align-items: center; 
+        height: 100%; 
     }
     .checkbox-placeholder { width: 20px; height: 20px; margin: auto; }
 
