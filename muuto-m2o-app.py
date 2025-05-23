@@ -14,7 +14,7 @@ st.set_page_config(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RAW_DATA_XLSX_PATH = os.path.join(BASE_DIR, "raw-data.xlsx")
 PRICE_MATRIX_EUROPE_XLSX_PATH = os.path.join(BASE_DIR, "price-matrix_EUROPE.xlsx")
-PRICE_MATRIX_GBP_IE_XLSX_PATH = os.path.join(BASE_DIR, "price-matrix_GBP-IE.xlsx") # New file path
+PRICE_MATRIX_GBP_IE_XLSX_PATH = os.path.join(BASE_DIR, "price-matrix_GBP-IE.xlsx") 
 MASTERDATA_TEMPLATE_XLSX_PATH = os.path.join(BASE_DIR, "Masterdata-output-template.xlsx")
 LOGO_PATH = os.path.join(BASE_DIR, "muuto_logo.png")
 
@@ -42,38 +42,41 @@ def construct_product_display_name(row):
 top_col1, top_col_spacer, top_col2 = st.columns([5.5, 0.5, 1])
 
 with top_col1:
-    st.title("Muuto M2O master data generator") # Sentence case
+    st.title("Muuto made-to-order master data tool") 
 
 with top_col2:
     if os.path.exists(LOGO_PATH):
         st.image(LOGO_PATH, width=120)
     else:
-        st.error(f"Muuto Logo not found. Expected at: {LOGO_PATH}. Please ensure 'muuto_logo.png' is in the script's directory.")
+        st.error(f"Muuto Logo not found. Expected at: {LOGO_PATH}.")
 
 
 # --- App Introduction ---
 st.markdown("""
-Select your preferred M2O sofa combinations — and instantly generate all the data you need.
- 
-Here’s how it works:
+Welcome to Muuto's Made-to-Order (MTO) Product Configurator!
+
+This tool simplifies selecting MTO products and generating the data you need for your systems. Here's how it works:
 
 * **Step 1: Select currency:**
-    * Start by selecting your preferred currency. This ensures that your tailored data pack includes recommended retail prices aligned with your market.
-* **Step 2: Explore your options and choose your sofacombinations:**
-    * Browse the curated made-to-order variants across sofa families, configurations, textiles and (where relevant) base colors. Simply tick off the combinations you'd like to include — it’s guided, visual and easy to use
-* **Step 3: Review your list:**
-    * Once you’ve made your selections, scroll down to review your full list. You can remove items directly from here if needed.
-* **Step 4: Download and add to your assortment:**
-    * Click ‘Generate’ to instantly download a file with all the essential details: product names, item numbers, pricing, packshots, textile info, textile swatches and more. Use the data pack to upload your new M2O variants to your webshop – and expand beyond Ready-to-Ship.
+    * Choose your preferred currency for pricing. This will determine which products are available.
+* **Step 2: Select product family & combinations:**
+    * Choose a product family to view its available products and upholstery options.
+    * Select your desired product, upholstery, and color combinations directly in the matrix.
+    * Use the "Select All" checkbox at the top of an upholstery color column to select/deselect all available products in that column.
+    * **Step 2a: Specify base colors:** For items where multiple base colors are available, you can select one or more options.
+* **Step 3: Review selections:**
+    * Review the final list of configured products. You can remove items from this list if needed.
+* **Step 4: Generate master data file:**
+    * After making your selections, generate and download an Excel file containing all master data for your selected items.
 """)
 
 # --- Initialize session state variables ---
 if 'raw_df' not in st.session_state: st.session_state.raw_df = None
-if 'wholesale_prices_df' not in st.session_state: st.session_state.wholesale_prices_df = None # Europe prices
-if 'retail_prices_df' not in st.session_state: st.session_state.retail_prices_df = None # Europe prices
-if 'wholesale_prices_gbp_ie_df' not in st.session_state: st.session_state.wholesale_prices_gbp_ie_df = None # GBP/IE prices
-if 'retail_prices_gbp_ie_df' not in st.session_state: st.session_state.retail_prices_gbp_ie_df = None # GBP/IE prices
-if 'filtered_raw_df' not in st.session_state: st.session_state.filtered_raw_df = None # Data filtered by currency/market
+if 'wholesale_prices_df' not in st.session_state: st.session_state.wholesale_prices_df = None
+if 'retail_prices_df' not in st.session_state: st.session_state.retail_prices_df = None
+if 'wholesale_prices_gbp_ie_df' not in st.session_state: st.session_state.wholesale_prices_gbp_ie_df = None
+if 'retail_prices_gbp_ie_df' not in st.session_state: st.session_state.retail_prices_gbp_ie_df = None
+if 'filtered_raw_df' not in st.session_state: st.session_state.filtered_raw_df = None
 if 'template_cols' not in st.session_state: st.session_state.template_cols = None
 if 'selected_family_session' not in st.session_state: st.session_state.selected_family_session = None
 if 'matrix_selected_generic_items' not in st.session_state: st.session_state.matrix_selected_generic_items = {}
@@ -85,72 +88,48 @@ if 'selected_currency_session' not in st.session_state: st.session_state.selecte
 # --- Load Data Directly from XLSX files ---
 files_loaded_successfully = True
 
-# Load Raw Data
 if st.session_state.raw_df is None:
     if os.path.exists(RAW_DATA_XLSX_PATH):
         try:
             st.session_state.raw_df = pd.read_excel(RAW_DATA_XLSX_PATH, sheet_name=RAW_DATA_APP_SHEET)
-            # Define required columns for the raw data file
             required_cols = ['Product Type', 'Product Model', 'Sofa Direction', 'Base Color', 'Product Family', 'Item No', 'Article No', 'Image URL swatch', 'Upholstery Type', 'Upholstery Color', 'Market']
             missing = [col for col in required_cols if col not in st.session_state.raw_df.columns]
             if missing:
-                st.error(f"Required columns are missing in '{os.path.basename(RAW_DATA_XLSX_PATH)}': {', '.join(missing)}.")
+                st.error(f"Required columns missing in '{os.path.basename(RAW_DATA_XLSX_PATH)}': {', '.join(missing)}.")
                 files_loaded_successfully = False
             else:
-                # Perform initial data transformations
                 st.session_state.raw_df['Product Display Name'] = st.session_state.raw_df.apply(construct_product_display_name, axis=1)
                 st.session_state.raw_df['Base Color Cleaned'] = st.session_state.raw_df['Base Color'].astype(str).str.strip().replace("N/A", pd.NA)
                 st.session_state.raw_df['Upholstery Type'] = st.session_state.raw_df['Upholstery Type'].astype(str).str.strip()
-                st.session_state.raw_df['Market'] = st.session_state.raw_df['Market'].astype(str).str.upper() # Ensure Market is uppercase for consistent filtering
-        except Exception as e:
-            st.error(f"Error loading Raw Data from '{RAW_DATA_XLSX_PATH}': {e}")
-            files_loaded_successfully = False
-    else:
-        st.error(f"Raw Data file not found at: {RAW_DATA_XLSX_PATH}")
-        files_loaded_successfully = False
+                st.session_state.raw_df['Market'] = st.session_state.raw_df['Market'].astype(str).str.upper()
+        except Exception as e: st.error(f"Error loading Raw Data: {e}"); files_loaded_successfully = False
+    else: st.error(f"Raw Data file not found: {RAW_DATA_XLSX_PATH}"); files_loaded_successfully = False
 
-# Load EUROPE prices
-if files_loaded_successfully and st.session_state.wholesale_prices_df is None: # Check if already loaded
+if files_loaded_successfully and st.session_state.wholesale_prices_df is None:
     if os.path.exists(PRICE_MATRIX_EUROPE_XLSX_PATH):
         try:
             st.session_state.wholesale_prices_df = pd.read_excel(PRICE_MATRIX_EUROPE_XLSX_PATH, sheet_name=PRICE_MATRIX_WHOLESALE_SHEET)
             st.session_state.retail_prices_df = pd.read_excel(PRICE_MATRIX_EUROPE_XLSX_PATH, sheet_name=PRICE_MATRIX_RETAIL_SHEET)
-        except Exception as e:
-            st.error(f"Error loading EUROPE Prices from '{PRICE_MATRIX_EUROPE_XLSX_PATH}': {e}")
-            files_loaded_successfully = False # Set to false if this crucial file fails
-    else:
-        st.error(f"Price Matrix EUROPE file not found: {PRICE_MATRIX_EUROPE_XLSX_PATH}")
-        files_loaded_successfully = False
+        except Exception as e: st.error(f"Error loading EUROPE Prices: {e}"); files_loaded_successfully = False
+    else: st.error(f"Price Matrix EUROPE file not found: {PRICE_MATRIX_EUROPE_XLSX_PATH}"); files_loaded_successfully = False
 
-# Load GBP/IE prices
-if files_loaded_successfully and st.session_state.wholesale_prices_gbp_ie_df is None: # Check if already loaded
+if files_loaded_successfully and st.session_state.wholesale_prices_gbp_ie_df is None:
     if os.path.exists(PRICE_MATRIX_GBP_IE_XLSX_PATH):
         try:
             st.session_state.wholesale_prices_gbp_ie_df = pd.read_excel(PRICE_MATRIX_GBP_IE_XLSX_PATH, sheet_name=PRICE_MATRIX_WHOLESALE_SHEET)
             st.session_state.retail_prices_gbp_ie_df = pd.read_excel(PRICE_MATRIX_GBP_IE_XLSX_PATH, sheet_name=PRICE_MATRIX_RETAIL_SHEET)
-        except Exception as e:
-            st.error(f"Error loading GBP/IE Prices from '{PRICE_MATRIX_GBP_IE_XLSX_PATH}': {e}")
-            files_loaded_successfully = False # Set to false if this crucial file fails
-    else:
-        st.error(f"Price Matrix GBP/IE file not found: {PRICE_MATRIX_GBP_IE_XLSX_PATH}")
-        files_loaded_successfully = False
+        except Exception as e: st.error(f"Error loading GBP/IE Prices: {e}"); files_loaded_successfully = False
+    else: st.error(f"Price Matrix GBP/IE file not found: {PRICE_MATRIX_GBP_IE_XLSX_PATH}"); files_loaded_successfully = False
 
-# Load Masterdata Template
+
 if files_loaded_successfully and st.session_state.template_cols is None:
     if os.path.exists(MASTERDATA_TEMPLATE_XLSX_PATH):
         try:
             st.session_state.template_cols = pd.read_excel(MASTERDATA_TEMPLATE_XLSX_PATH).columns.tolist()
-            # Ensure price columns are present, even if not in template, for dynamic naming
-            if "Wholesale price" not in st.session_state.template_cols:
-                st.session_state.template_cols.append("Wholesale price")
-            if "Retail price" not in st.session_state.template_cols:
-                st.session_state.template_cols.append("Retail price")
-        except Exception as e:
-            st.error(f"Error loading Template from '{MASTERDATA_TEMPLATE_XLSX_PATH}': {e}")
-            files_loaded_successfully = False
-    else:
-        st.error(f"Template file not found: {MASTERDATA_TEMPLATE_XLSX_PATH}")
-        files_loaded_successfully = False
+            if "Wholesale price" not in st.session_state.template_cols: st.session_state.template_cols.append("Wholesale price")
+            if "Retail price" not in st.session_state.template_cols: st.session_state.template_cols.append("Retail price")
+        except Exception as e: st.error(f"Error loading Template: {e}"); files_loaded_successfully = False
+    else: st.error(f"Template file not found: {MASTERDATA_TEMPLATE_XLSX_PATH}"); files_loaded_successfully = False
 
 # --- Main Application Area ---
 if files_loaded_successfully:
@@ -160,83 +139,57 @@ if files_loaded_successfully:
     
     europe_currencies = []
     gbp_ie_currencies = []
-    
-    # Define which currencies belong to which price file
-    # These are the currencies expected in price-matrix_EUROPE.xlsx
     EXPECTED_EUROPE_CURRENCIES = ['DACH - EURO', 'DKK', 'EURO', 'NOK', 'PLN', 'SEK', 'AUD']
-    # These are the currencies expected in price-matrix_GBP-IE.xlsx
-    EXPECTED_GBP_IE_CURRENCIES = ['GBP', 'IE - EUR']
+    EXPECTED_GBP_IE_CURRENCIES = ['GBP', 'IE - EUR'] # Corrected based on previous error
 
     try:
-        # Get EUROPE currencies from the loaded dataframe
         if st.session_state.wholesale_prices_df is not None and not st.session_state.wholesale_prices_df.empty:
-            article_no_col_name_ws_eu = st.session_state.wholesale_prices_df.columns[0] # Assumes first col is Article No.
-            # Filter to only include expected EU currencies that are actually in the file
+            article_no_col_name_ws_eu = st.session_state.wholesale_prices_df.columns[0]
             europe_currencies = [col for col in st.session_state.wholesale_prices_df.columns if col in EXPECTED_EUROPE_CURRENCIES and str(col).lower() != str(article_no_col_name_ws_eu).lower()]
         
-        # Get GBP/IE currencies from the loaded dataframe
         if st.session_state.wholesale_prices_gbp_ie_df is not None and not st.session_state.wholesale_prices_gbp_ie_df.empty:
-            article_no_col_name_ws_gbp = st.session_state.wholesale_prices_gbp_ie_df.columns[0] # Assumes first col is Article No.
-            # Filter to only include expected GBP/IE currencies that are actually in the file
+            article_no_col_name_ws_gbp = st.session_state.wholesale_prices_gbp_ie_df.columns[0]
             gbp_ie_currencies = [col for col in st.session_state.wholesale_prices_gbp_ie_df.columns if col in EXPECTED_GBP_IE_CURRENCIES and str(col).lower() != str(article_no_col_name_ws_gbp).lower()]
 
-        # Combine and sort all available currency options
-        currency_options = [DEFAULT_NO_SELECTION] + sorted(list(set(europe_currencies + gbp_ie_currencies))) # Use set to avoid duplicates if a currency accidentally appears in both lists
+        currency_options = [DEFAULT_NO_SELECTION] + sorted(list(set(europe_currencies + gbp_ie_currencies)))
         
-        # Determine the index for the selectbox
         current_currency_idx = 0
         if st.session_state.selected_currency_session and st.session_state.selected_currency_session in currency_options:
             current_currency_idx = currency_options.index(st.session_state.selected_currency_session)
-
-        # Store previous currency to detect changes
+        
         prev_selected_currency = st.session_state.selected_currency_session
+        selected_currency_choice = st.selectbox("Select Currency:", options=currency_options, index=current_currency_idx, key="currency_selector_main_key")
 
-        selected_currency_choice = st.selectbox(
-            "Select Currency:", 
-            options=currency_options, 
-            index=current_currency_idx, 
-            key="currency_selector_main_key" # Changed key to avoid conflict
-        )
-
-        # Update session state for selected currency
         if selected_currency_choice and selected_currency_choice != DEFAULT_NO_SELECTION:
             st.session_state.selected_currency_session = selected_currency_choice
         else:
-            st.session_state.selected_currency_session = None # No currency selected
+            st.session_state.selected_currency_session = None
 
-        # If currency selection changed, reset downstream selections
         if st.session_state.selected_currency_session != prev_selected_currency:
             st.session_state.matrix_selected_generic_items = {}
             st.session_state.user_chosen_base_colors_for_items = {}
             st.session_state.final_items_for_download = []
-            st.session_state.selected_family_session = DEFAULT_NO_SELECTION # Reset family selection
-            st.toast(f"Currency changed. Product selections have been reset.", icon="⚠️")
+            st.session_state.selected_family_session = DEFAULT_NO_SELECTION
+            if prev_selected_currency is not None : st.toast(f"Currency changed. Product selections reset.", icon="⚠️")
 
 
-        # Dynamically filter the raw data based on currency selection and market rules
         if st.session_state.selected_currency_session and st.session_state.raw_df is not None:
             current_currency = st.session_state.selected_currency_session
-            temp_df = st.session_state.raw_df.copy() # Work with a copy
-
+            temp_df = st.session_state.raw_df.copy()
             if current_currency in EXPECTED_GBP_IE_CURRENCIES:
-                # For GBP or IE - EUR, exclude products with 'EU' in Market column
                 st.session_state.filtered_raw_df = temp_df[temp_df['Market'] != 'EU']
             elif current_currency in EXPECTED_EUROPE_CURRENCIES:
-                # For other European currencies, exclude products with 'UK' in Market column
                 st.session_state.filtered_raw_df = temp_df[temp_df['Market'] != 'UK']
             else:
-                # If currency is somehow not in either list (e.g. only "Please Select"), show no products
                  st.session_state.filtered_raw_df = pd.DataFrame(columns=st.session_state.raw_df.columns)
-        elif st.session_state.raw_df is not None: # If no currency selected but raw_df exists
-            st.session_state.filtered_raw_df = pd.DataFrame(columns=st.session_state.raw_df.columns) # Show no products
-        else: # If raw_df is None (failed to load)
+        elif st.session_state.raw_df is not None:
+            st.session_state.filtered_raw_df = pd.DataFrame(columns=st.session_state.raw_df.columns)
+        else: 
             st.session_state.filtered_raw_df = pd.DataFrame()
-
-
     except Exception as e:
-        st.error(f"Error processing currency selection or filtering: {e}")
+        st.error(f"Error processing currency selection/filtering: {e}")
         st.session_state.selected_currency_session = None
-        st.session_state.filtered_raw_df = pd.DataFrame() # Ensure it's an empty DataFrame on error
+        st.session_state.filtered_raw_df = pd.DataFrame()
 
     # --- Step 2: Select product combinations ---
     st.header("Step 2: Select product combinations (product / upholstery / color)")
@@ -244,13 +197,12 @@ if files_loaded_successfully:
     if not st.session_state.selected_currency_session:
         st.info("Please select a currency in Step 1 to see available products.")
     elif st.session_state.filtered_raw_df is None or st.session_state.filtered_raw_df.empty:
-        st.info(f"No products available for the selected currency ({st.session_state.selected_currency_session}) based on market filtering rules.")
+        st.info(f"No products available for {st.session_state.selected_currency_session} based on market rules.")
     else:
-        df_for_display = st.session_state.filtered_raw_df # Use the dynamically filtered dataframe
+        df_for_display = st.session_state.filtered_raw_df
 
         available_families_in_view = [DEFAULT_NO_SELECTION] + sorted(df_for_display['Product Family'].dropna().unique()) if 'Product Family' in df_for_display.columns else [DEFAULT_NO_SELECTION]
         
-        # Ensure selected family is valid for the current filtered data
         if st.session_state.selected_family_session not in available_families_in_view:
             st.session_state.selected_family_session = DEFAULT_NO_SELECTION
 
@@ -258,22 +210,16 @@ if files_loaded_successfully:
         if st.session_state.selected_family_session in available_families_in_view:
             selected_family_idx = available_families_in_view.index(st.session_state.selected_family_session)
 
-        selected_family = st.selectbox(
-            "Select Product Family:", 
-            options=available_families_in_view, 
-            index=selected_family_idx, 
-            key="family_selector_main"
-        )
+        selected_family = st.selectbox("Select Product Family:", options=available_families_in_view, index=selected_family_idx, key="family_selector_main")
         st.session_state.selected_family_session = selected_family
 
+        # --- Callback for individual checkbox toggle ---
         def handle_matrix_cb_toggle(prod_name, uph_type, uph_color, checkbox_key_matrix):
             is_checked = st.session_state[checkbox_key_matrix]
-            # Ensure selected_family from session state is used for key generation consistency
             current_selected_family_for_key = st.session_state.selected_family_session 
             generic_item_key = f"{current_selected_family_for_key}_{prod_name}_{uph_type}_{uph_color}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
 
             if is_checked:
-                # Use filtered_raw_df for matching
                 matching_items = st.session_state.filtered_raw_df[
                     (st.session_state.filtered_raw_df['Product Family'] == current_selected_family_for_key) &
                     (st.session_state.filtered_raw_df['Product Display Name'] == prod_name) &
@@ -283,7 +229,6 @@ if files_loaded_successfully:
                 if not matching_items.empty:
                     unique_base_colors = matching_items['Base Color Cleaned'].dropna().unique().tolist()
                     first_item_match = matching_items.iloc[0]
-
                     item_data = {
                         'key': generic_item_key, 'family': current_selected_family_for_key, 'product': prod_name,
                         'upholstery_type': uph_type, 'upholstery_color': uph_color,
@@ -294,20 +239,60 @@ if files_loaded_successfully:
                         'resolved_base_if_single': unique_base_colors[0] if len(unique_base_colors) == 1 else (pd.NA if not unique_base_colors else None)
                     }
                     st.session_state.matrix_selected_generic_items[generic_item_key] = item_data
-                    st.toast(f"Selected: {prod_name} / {uph_type} / {uph_color}", icon="➕")
-            else: # Item is being unchecked
+                    # st.toast(f"Selected: {prod_name} / {uph_type} / {uph_color}", icon="➕") # Optional: can be too noisy with select all
+            else: 
                 if generic_item_key in st.session_state.matrix_selected_generic_items:
                     del st.session_state.matrix_selected_generic_items[generic_item_key]
-                    # Also remove any base color selections for this generic item
                     if generic_item_key in st.session_state.user_chosen_base_colors_for_items:
                         del st.session_state.user_chosen_base_colors_for_items[generic_item_key]
-                    st.toast(f"Deselected: {prod_name} / {uph_type} / {uph_color}", icon="➖")
-                    # No need to rerun here, review list will update automatically
+                    # st.toast(f"Deselected: {prod_name} / {uph_type} / {uph_color}", icon="➖") # Optional
+
+        # --- Callback for "Select All" column checkbox ---
+        def handle_select_all_column_toggle(uph_type_col, uph_color_col, products_in_col, select_all_key):
+            is_all_selected_for_column_now = st.session_state[select_all_key]
+            current_selected_family_for_key = st.session_state.selected_family_session
+
+            for prod_name in products_in_col:
+                # Check if this product actually exists with this upholstery/color combination
+                item_exists_df_col = st.session_state.filtered_raw_df[
+                    (st.session_state.filtered_raw_df['Product Family'] == current_selected_family_for_key) &
+                    (st.session_state.filtered_raw_df['Product Display Name'] == prod_name) &
+                    (st.session_state.filtered_raw_df['Upholstery Type'].fillna("N/A") == uph_type_col) &
+                    (st.session_state.filtered_raw_df['Upholstery Color'].astype(str).fillna("N/A") == uph_color_col)
+                ]
+                if not item_exists_df_col.empty:
+                    generic_item_key_col = f"{current_selected_family_for_key}_{prod_name}_{uph_type_col}_{uph_color_col}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
+                    
+                    if is_all_selected_for_column_now: # Select all items in this column
+                        if generic_item_key_col not in st.session_state.matrix_selected_generic_items:
+                            # Add item (logic copied from handle_matrix_cb_toggle's "add" part)
+                            unique_base_colors_col = item_exists_df_col['Base Color Cleaned'].dropna().unique().tolist()
+                            first_item_match_col = item_exists_df_col.iloc[0]
+                            item_data_col = {
+                                'key': generic_item_key_col, 'family': current_selected_family_for_key, 'product': prod_name,
+                                'upholstery_type': uph_type_col, 'upholstery_color': uph_color_col,
+                                'requires_base_choice': len(unique_base_colors_col) > 1,
+                                'available_bases': unique_base_colors_col if len(unique_base_colors_col) > 1 else [],
+                                'item_no_if_single_base': first_item_match_col['Item No'] if len(unique_base_colors_col) <= 1 else None,
+                                'article_no_if_single_base': first_item_match_col['Article No'] if len(unique_base_colors_col) <= 1 else None,
+                                'resolved_base_if_single': unique_base_colors_col[0] if len(unique_base_colors_col) == 1 else (pd.NA if not unique_base_colors_col else None)
+                            }
+                            st.session_state.matrix_selected_generic_items[generic_item_key_col] = item_data_col
+                    else: # Deselect all items in this column
+                        if generic_item_key_col in st.session_state.matrix_selected_generic_items:
+                            del st.session_state.matrix_selected_generic_items[generic_item_key_col]
+                            if generic_item_key_col in st.session_state.user_chosen_base_colors_for_items:
+                                del st.session_state.user_chosen_base_colors_for_items[generic_item_key_col]
+            
+            if is_all_selected_for_column_now:
+                st.toast(f"All items in column '{uph_type_col} - {uph_color_col}' selected.", icon="✅")
+            else:
+                st.toast(f"All items in column '{uph_type_col} - {uph_color_col}' deselected.", icon="❌")
+
 
         def handle_base_color_multiselect_change(item_key_for_base_select):
             multiselect_widget_key = f"ms_base_{item_key_for_base_select}"
             st.session_state.user_chosen_base_colors_for_items[item_key_for_base_select] = st.session_state[multiselect_widget_key]
-            # No need to rerun here, review list will update automatically
 
 
         if selected_family and selected_family != DEFAULT_NO_SELECTION and 'Product Family' in df_for_display.columns:
@@ -316,174 +301,152 @@ if files_loaded_successfully:
                 products_in_family = sorted(family_df['Product Display Name'].dropna().unique())
                 upholstery_types_in_family = sorted(family_df['Upholstery Type'].dropna().unique())
 
-                if not products_in_family: st.info(f"No products found in the family: {selected_family} for the selected currency/market.")
-                elif not upholstery_types_in_family: st.info(f"No upholstery types found for the product family: {selected_family} for the selected currency/market.")
+                if not products_in_family: st.info(f"No products in {selected_family} for current currency/market.")
+                elif not upholstery_types_in_family: st.info(f"No upholstery types for {selected_family} for current currency/market.")
                 else:
-                    # Matrix display logic (headers, rows, checkboxes)
-                    # This part remains largely the same, ensuring it uses `family_df`
                     header_upholstery_types, header_swatches, header_color_numbers, data_column_map = [], [], [], []
-                    header_upholstery_types.append("Product") # First column header
-                    header_swatches.append(" ") # Placeholder for the first column in swatch row
-                    header_color_numbers.append(" ") # Placeholder for the first column in color number row
+                    header_upholstery_types.append("Product") 
+                    header_swatches.append(" ") 
+                    header_color_numbers.append(" ") 
 
                     for uph_type_clean in upholstery_types_in_family:
-                        # Get unique colors and swatches for this upholstery type within the current family_df
                         colors_for_type_df = family_df[family_df['Upholstery Type'] == uph_type_clean][['Upholstery Color', 'Image URL swatch']].drop_duplicates().sort_values(by='Upholstery Color')
                         if not colors_for_type_df.empty:
-                            # Add upholstery type header (spans multiple color columns)
-                            header_upholstery_types.extend([uph_type_clean] + [""] * (len(colors_for_type_df) -1) ) # Span header
+                            header_upholstery_types.extend([uph_type_clean] + [""] * (len(colors_for_type_df) -1) ) 
                             for _, color_row in colors_for_type_df.iterrows():
-                                color_val = str(color_row['Upholstery Color'])
-                                swatch_val = color_row['Image URL swatch']
+                                color_val, swatch_val = str(color_row['Upholstery Color']), color_row['Image URL swatch']
                                 header_swatches.append(swatch_val if pd.notna(swatch_val) else None)
                                 header_color_numbers.append(color_val)
                                 data_column_map.append({'uph_type': uph_type_clean, 'uph_color': color_val, 'swatch': swatch_val})
                     
                     num_data_columns = len(data_column_map)
-                    if num_data_columns == 0:
-                        st.info(f"No upholstery/color combinations to display for the family: {selected_family}")
-                    else:
-                        # Display Upholstery Type Headers
+                    if num_data_columns > 0:
                         cols_uph_type_header = st.columns([2.5] + [1] * num_data_columns)
                         current_uph_type_header_display = None
                         for i, col_widget in enumerate(cols_uph_type_header):
-                            if i == 0: # Product column, no header here
-                                with col_widget: st.caption("") 
-                            else: # Data columns
-                                map_entry = data_column_map[i-1] # data_column_map is 0-indexed for data cols
-                                if map_entry['uph_type'] != current_uph_type_header_display: # Display only when type changes
+                            if i > 0:
+                                map_entry = data_column_map[i-1] 
+                                if map_entry['uph_type'] != current_uph_type_header_display: 
                                     with col_widget: st.caption(f"<div class='upholstery-header'>{map_entry['uph_type']}</div>", unsafe_allow_html=True)
                                     current_uph_type_header_display = map_entry['uph_type']
-                                # else: with col_widget: st.caption("") # Keep blank if same type
 
-                        # Display Swatch Headers
                         cols_swatch_header = st.columns([2.5] + [1] * num_data_columns)
-                        cols_swatch_header[0].markdown("<div class='zoom-instruction'><br>Click swatch in header to zoom</div>", unsafe_allow_html=True)
-                        for i, col_widget in enumerate(cols_swatch_header[1:]): # Skip first column (Product Name)
-                            sw_url = data_column_map[i]['swatch'] # i is 0-indexed for data_column_map
+                        cols_swatch_header[0].markdown("<div class='zoom-instruction'><br>Click swatch to zoom</div>", unsafe_allow_html=True)
+                        for i, col_widget in enumerate(cols_swatch_header[1:]): 
+                            sw_url = data_column_map[i]['swatch'] 
                             with col_widget:
                                 if sw_url and pd.notna(sw_url): st.image(sw_url, width=30)
                                 else: st.markdown("<div class='swatch-placeholder'></div>", unsafe_allow_html=True)
 
-                        # Display Color Number Headers
                         cols_color_num_header = st.columns([2.5] + [1] * num_data_columns)
                         for i, col_widget in enumerate(cols_color_num_header):
-                            if i == 0: # Product column
-                                with col_widget: st.caption("")
-                            else: # Data columns
+                            if i > 0: 
                                 with col_widget: st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
                         
-                        st.markdown("---") # Separator before product rows
+                        # --- "Select All" Checkbox Row ---
+                        cols_select_all_header = st.columns([2.5] + [1] * num_data_columns, vertical_alignment="bottom")
+                        cols_select_all_header[0].markdown("<div class='select-all-label'>Select All:</div>", unsafe_allow_html=True) # Label for the row
+                        for i, col_widget_sa in enumerate(cols_select_all_header[1:]):
+                            current_col_map_entry = data_column_map[i]
+                            uph_type_for_col_sa = current_col_map_entry['uph_type']
+                            uph_color_for_col_sa = current_col_map_entry['uph_color']
+                            
+                            # Determine if all existing items in this column are selected
+                            all_in_col_selected = True
+                            num_selectable_in_col = 0
+                            for prod_name_sa in products_in_family:
+                                item_exists_df_sa = family_df[
+                                    (family_df['Product Display Name'] == prod_name_sa) &
+                                    (family_df['Upholstery Type'] == uph_type_for_col_sa) &
+                                    (family_df['Upholstery Color'].astype(str).fillna("N/A") == uph_color_for_col_sa)
+                                ]
+                                if not item_exists_df_sa.empty:
+                                    num_selectable_in_col += 1
+                                    generic_item_key_sa = f"{selected_family}_{prod_name_sa}_{uph_type_for_col_sa}_{uph_color_for_col_sa}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
+                                    if generic_item_key_sa not in st.session_state.matrix_selected_generic_items:
+                                        all_in_col_selected = False
+                                        break
+                            if num_selectable_in_col == 0 : all_in_col_selected = False # If no items exist in column, it's not "all selected"
 
-                        # Display Product Rows with Checkboxes
+                            select_all_key = f"select_all_cb_{selected_family}_{uph_type_for_col_sa}_{uph_color_for_col_sa}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
+                            
+                            with col_widget_sa:
+                                if num_selectable_in_col > 0: # Only show checkbox if there's something to select
+                                    st.checkbox(" ", value=all_in_col_selected, key=select_all_key, 
+                                                on_change=handle_select_all_column_toggle, 
+                                                args=(uph_type_for_col_sa, uph_color_for_col_sa, products_in_family, select_all_key),
+                                                label_visibility="collapsed",
+                                                help=f"Select/Deselect all for {uph_type_for_col_sa} - {uph_color_for_col_sa}")
+                                else:
+                                    st.markdown("<div class='checkbox-placeholder'></div>", unsafe_allow_html=True)
+
+
+                        st.markdown("---") 
+
                         for prod_name in products_in_family:
                             cols_product_row = st.columns([2.5] + [1] * num_data_columns, vertical_alignment="center")
                             cols_product_row[0].markdown(f"<div class='product-name-cell'>{prod_name}</div>", unsafe_allow_html=True)
 
-                            for i, col_widget in enumerate(cols_product_row[1:]): # Iterate through data columns
+                            for i, col_widget in enumerate(cols_product_row[1:]): 
                                 current_col_uph_type_filter = data_column_map[i]['uph_type']
                                 current_col_uph_color_filter = data_column_map[i]['uph_color']
                                 
-                                # Check if this specific product/upholstery/color combination exists in the family_df
                                 item_exists_df = family_df[
                                     (family_df['Product Display Name'] == prod_name) &
                                     (family_df['Upholstery Type'] == current_col_uph_type_filter) &
                                     (family_df['Upholstery Color'].astype(str).fillna("N/A") == current_col_uph_color_filter)
                                 ]
                                 
-                                cell_container = col_widget.container() # Use container for better layout control
+                                cell_container = col_widget.container() 
                                 if not item_exists_df.empty:
-                                    # Construct a unique key for the checkbox and for the generic item
-                                    cb_key_str = f"cb_{st.session_state.selected_family_session}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ","_").replace("/","_").replace("(","").replace(")","")
-                                    generic_item_key_for_check = f"{st.session_state.selected_family_session}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
-                                    
+                                    cb_key_str = f"cb_{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ","_").replace("/","_").replace("(","").replace(")","")
+                                    generic_item_key_for_check = f"{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
                                     is_gen_selected = generic_item_key_for_check in st.session_state.matrix_selected_generic_items
                                     
-                                    cell_container.checkbox(
-                                        " ", 
-                                        value=is_gen_selected, 
-                                        key=cb_key_str, 
-                                        on_change=handle_matrix_cb_toggle, 
-                                        args=(prod_name, current_col_uph_type_filter, current_col_uph_color_filter, cb_key_str), 
-                                        label_visibility="collapsed"
-                                    )
-                                else:
-                                    # If combination doesn't exist, cell remains empty (or you could put a placeholder)
-                                    pass 
-            else: # family_df is empty or no upholstery type
-                 if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"No data found for product family: {selected_family} with the current currency/market selection.")
-        else: # No family selected or family not in df
-            if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"Select a product family to see options.")
+                                    cell_container.checkbox(" ", value=is_gen_selected, key=cb_key_str, 
+                                                            on_change=handle_matrix_cb_toggle, 
+                                                            args=(prod_name, current_col_uph_type_filter, current_col_uph_color_filter, cb_key_str), 
+                                                            label_visibility="collapsed")
+            else: 
+                 if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"No data for {selected_family} with current currency/market.")
+        else: 
+            if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"Select product family.")
 
 
     # --- Step 2a: Specify Base Colors ---
-    # This section should only show if there are items selected that require a base choice
-    items_needing_base_choice_now = [
-        item_data for key, item_data in st.session_state.matrix_selected_generic_items.items() 
-        if item_data.get('requires_base_choice')
-    ]
+    items_needing_base_choice_now = [item_data for item_data in st.session_state.matrix_selected_generic_items.values() if item_data.get('requires_base_choice')]
     if items_needing_base_choice_now:
         st.subheader("Step 2a: Specify base colors")
         for generic_item in items_needing_base_choice_now:
-            item_key = generic_item['key']
-            multiselect_key = f"ms_base_{item_key}" # Unique key for multiselect
-            
+            item_key, multiselect_key = generic_item['key'], f"ms_base_{generic_item['key']}"
             st.markdown(f"**{generic_item['product']}** ({generic_item['upholstery_type']} - {generic_item['upholstery_color']})")
-            
-            current_selection_for_this_item = st.session_state.user_chosen_base_colors_for_items.get(item_key, [])
-            
-            st.multiselect(
-                label=f"Available base colors. You can select multiple:", # Clearer label
-                options=generic_item['available_bases'],
-                default=current_selection_for_this_item,
-                key=multiselect_key,
-                on_change=handle_base_color_multiselect_change,
-                args=(item_key,) # Pass item_key to identify which item's base colors are changing
-            )
-            st.markdown("---") # Separator between items needing base color
+            st.multiselect(f"Available base colors:", options=generic_item['available_bases'], default=st.session_state.user_chosen_base_colors_for_items.get(item_key, []), key=multiselect_key, on_change=handle_base_color_multiselect_change, args=(item_key,))
+            st.markdown("---")
 
     # --- Step 3: Review Selections ---
     st.header("Step 3: Review selections")
-    _current_final_items = [] # Rebuild this list every run based on current selections
+    _current_final_items = [] 
     
-    # Ensure filtered_raw_df is available for lookup
     if st.session_state.filtered_raw_df is not None and not st.session_state.filtered_raw_df.empty:
         for key, gen_item_data in st.session_state.matrix_selected_generic_items.items():
-            if not gen_item_data['requires_base_choice']: # Item has a single, resolved base or no base
-                if gen_item_data.get('item_no_if_single_base') is not None: # Ensure item_no exists
-                    _current_final_items.append({
-                        "description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']}" + (f" / Base: {gen_item_data['resolved_base_if_single']}" if pd.notna(gen_item_data['resolved_base_if_single']) else ""),
-                        "item_no": gen_item_data['item_no_if_single_base'],
-                        "article_no": gen_item_data['article_no_if_single_base'],
-                        "key_in_matrix": key # Store the original key from matrix_selected_generic_items
-                    })
-            else: # Item requires base choice, iterate through user's chosen bases
+            if not gen_item_data['requires_base_choice']: 
+                if gen_item_data.get('item_no_if_single_base') is not None: 
+                    _current_final_items.append({"description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']}" + (f" / Base: {gen_item_data['resolved_base_if_single']}" if pd.notna(gen_item_data['resolved_base_if_single']) else ""), "item_no": gen_item_data['item_no_if_single_base'], "article_no": gen_item_data['article_no_if_single_base'], "key_in_matrix": key})
+            else: 
                 selected_bases_for_this = st.session_state.user_chosen_base_colors_for_items.get(key, [])
                 for bc in selected_bases_for_this:
-                    # Find the specific item in filtered_raw_df that matches this generic item + chosen base color
                     specific_item_df = st.session_state.filtered_raw_df[
                         (st.session_state.filtered_raw_df['Product Family'] == gen_item_data['family']) &
                         (st.session_state.filtered_raw_df['Product Display Name'] == gen_item_data['product']) &
                         (st.session_state.filtered_raw_df['Upholstery Type'].fillna("N/A") == gen_item_data['upholstery_type']) &
                         (st.session_state.filtered_raw_df['Upholstery Color'].astype(str).fillna("N/A") == gen_item_data['upholstery_color']) &
-                        (st.session_state.filtered_raw_df['Base Color Cleaned'].fillna("N/A") == bc) # Match chosen base
-                    ]
+                        (st.session_state.filtered_raw_df['Base Color Cleaned'].fillna("N/A") == bc)]
                     if not specific_item_df.empty:
-                        actual_item = specific_item_df.iloc[0] # Should be unique
-                        _current_final_items.append({
-                            "description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']} / Base: {bc}",
-                            "item_no": actual_item['Item No'],
-                            "article_no": actual_item['Article No'],
-                            "key_in_matrix": key, # Store the original key
-                            "chosen_base": bc # Store the specific base color for this final item
-                        })
+                        actual_item = specific_item_df.iloc[0] 
+                        _current_final_items.append({"description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']} / Base: {bc}", "item_no": actual_item['Item No'], "article_no": actual_item['Article No'], "key_in_matrix": key, "chosen_base": bc})
     
-    # Deduplicate final items if necessary (e.g., if logic somehow allows adding same item_no + base twice)
-    # This ensures each item in the download list is truly unique by its specific configuration
-    temp_final_list_review = []
-    seen_item_keys_for_review = set() # Use a combination of item_no and chosen_base for uniqueness
+    temp_final_list_review, seen_item_keys_for_review = [], set() 
     for item_rev in _current_final_items:
-        # Create a unique key for this specific item configuration (item_no + base if applicable)
         unique_config_key = f"{item_rev['item_no']}_{item_rev.get('chosen_base', 'NO_BASE_APPLICABLE')}"
         if unique_config_key not in seen_item_keys_for_review:
             temp_final_list_review.append(item_rev)
@@ -493,547 +456,175 @@ if files_loaded_successfully:
 
     if st.session_state.final_items_for_download:
         st.markdown("**Current Selections for Download:**")
-        # Iterate backwards for safe removal if using pop
         for i in range(len(st.session_state.final_items_for_download) -1, -1, -1):
             combo = st.session_state.final_items_for_download[i]
             col1_rev, col2_rev = st.columns([0.9, 0.1])
             col1_rev.write(f"{i+1}. {combo['description']} (Item: {combo['item_no']})")
-            
-            # Unique key for the remove button
             remove_button_key = f"final_review_remove_{i}_{combo['item_no']}_{combo.get('chosen_base','nobase')}"
-
             if col2_rev.button(f"Remove", key=remove_button_key):
-                original_matrix_key = combo['key_in_matrix'] # Key of the generic item in matrix_selected_generic_items
-                
+                original_matrix_key = combo['key_in_matrix'] 
                 if original_matrix_key in st.session_state.matrix_selected_generic_items:
                     generic_item_details = st.session_state.matrix_selected_generic_items[original_matrix_key]
-                    
                     if generic_item_details.get('requires_base_choice') and 'chosen_base' in combo:
-                        # This is an item where a specific base was chosen, remove that base selection
                         chosen_base_to_remove = combo['chosen_base']
                         if original_matrix_key in st.session_state.user_chosen_base_colors_for_items:
                             if chosen_base_to_remove in st.session_state.user_chosen_base_colors_for_items[original_matrix_key]:
                                 st.session_state.user_chosen_base_colors_for_items[original_matrix_key].remove(chosen_base_to_remove)
-                                # If no bases are left selected for this generic item, remove the generic item itself
                                 if not st.session_state.user_chosen_base_colors_for_items[original_matrix_key]:
-                                    del st.session_state.user_chosen_base_colors_for_items[original_matrix_key] # Clean up empty list
-                                    del st.session_state.matrix_selected_generic_items[original_matrix_key] # Remove generic item
+                                    del st.session_state.user_chosen_base_colors_for_items[original_matrix_key] 
+                                    del st.session_state.matrix_selected_generic_items[original_matrix_key] 
                     else:
-                        # This is an item with a single/no base, or the generic item itself is being removed
                         del st.session_state.matrix_selected_generic_items[original_matrix_key]
-                        # If it had base choices but was treated as single (should not happen if logic is correct)
                         if original_matrix_key in st.session_state.user_chosen_base_colors_for_items:
                              del st.session_state.user_chosen_base_colors_for_items[original_matrix_key]
-                
-                # Remove from the download list
                 st.session_state.final_items_for_download.pop(i)
                 st.toast(f"Removed: {combo['description']}", icon="🗑️")
-                st.rerun() # Rerun to update the review list and checkbox states
+                st.rerun() 
         st.markdown("---")
     else:
-        st.info("No items selected for download yet. Please make selections in Step 2.")
+        st.info("No items selected for download yet.")
 
 
     # --- Step 4: Generate Master Data File ---
     st.header("Step 4: Generate master data file")
 
     def prepare_excel_for_download_final():
-        if not st.session_state.final_items_for_download:
-            st.warning("No items selected to download.")
-            return None
+        if not st.session_state.final_items_for_download: st.warning("No items selected."); return None
         current_selected_currency_for_dl = st.session_state.selected_currency_session
-        if not current_selected_currency_for_dl:
-            st.warning("Please select a currency in Step 1 before generating the file.")
-            return None
+        if not current_selected_currency_for_dl: st.warning("Select currency first."); return None
 
-        # Determine which price dataframes to use based on the selected currency
-        # These are the same lists used in Step 1 for currency population
         if current_selected_currency_for_dl in EXPECTED_GBP_IE_CURRENCIES:
-            wholesale_prices_to_use = st.session_state.wholesale_prices_gbp_ie_df
-            retail_prices_to_use = st.session_state.retail_prices_gbp_ie_df
-            if wholesale_prices_to_use is None or retail_prices_to_use is None:
-                st.error(f"GBP/IE price matrix is not loaded. Cannot generate file for {current_selected_currency_for_dl}.")
-                return None
+            ws_prices, rt_prices = st.session_state.wholesale_prices_gbp_ie_df, st.session_state.retail_prices_gbp_ie_df
+            if ws_prices is None or rt_prices is None: st.error(f"GBP/IE price matrix not loaded."); return None
         elif current_selected_currency_for_dl in EXPECTED_EUROPE_CURRENCIES:
-            wholesale_prices_to_use = st.session_state.wholesale_prices_df
-            retail_prices_to_use = st.session_state.retail_prices_df
-            if wholesale_prices_to_use is None or retail_prices_to_use is None:
-                st.error(f"Europe price matrix is not loaded. Cannot generate file for {current_selected_currency_for_dl}.")
-                return None
-        else:
-            st.error(f"Selected currency '{current_selected_currency_for_dl}' is not configured for price lookup.")
-            return None
+            ws_prices, rt_prices = st.session_state.wholesale_prices_df, st.session_state.retail_prices_df
+            if ws_prices is None or rt_prices is None: st.error(f"Europe price matrix not loaded."); return None
+        else: st.error(f"Currency '{current_selected_currency_for_dl}' not configured."); return None
         
         output_data = []
-        # Dynamic column names for prices based on selected currency
-        ws_price_col_name_dynamic = f"Wholesale price ({current_selected_currency_for_dl})"
-        rt_price_col_name_dynamic = f"Retail price ({current_selected_currency_for_dl})"
+        ws_price_col_dyn = f"Wholesale price ({current_selected_currency_for_dl})"
+        rt_price_col_dyn = f"Retail price ({current_selected_currency_for_dl})"
         
-        # Prepare the list of final output columns, substituting generic price col names with dynamic ones
-        final_output_columns = []
-        seen_output_cols = set() # To handle potential duplicates if template has generic and specific
-        for col_template in st.session_state.template_cols:
-            col_template_lower = col_template.lower()
-            target_col = col_template # Default to template column name
-            if col_template_lower == "wholesale price":
-                target_col = ws_price_col_name_dynamic
-            elif col_template_lower == "retail price":
-                target_col = rt_price_col_name_dynamic
-            
-            if target_col not in seen_output_cols:
-                final_output_columns.append(target_col)
-                seen_output_cols.add(target_col)
+        final_output_cols, seen_cols = [], set()
+        for col_temp in st.session_state.template_cols:
+            target_col = ws_price_col_dyn if col_temp.lower() == "wholesale price" else (rt_price_col_dyn if col_temp.lower() == "retail price" else col_temp)
+            if target_col not in seen_cols: final_output_cols.append(target_col); seen_cols.add(target_col)
+        if ws_price_col_dyn not in final_output_cols: final_output_cols.append(ws_price_col_dyn)
+        if rt_price_col_dyn not in final_output_cols: final_output_cols.append(rt_price_col_dyn)
         
-        # Ensure the dynamic price columns are in the list if not derived from template
-        if ws_price_col_name_dynamic not in final_output_columns: final_output_columns.append(ws_price_col_name_dynamic)
-        if rt_price_col_name_dynamic not in final_output_columns: final_output_columns.append(rt_price_col_name_dynamic)
-        
-        # Use the original raw_df for fetching all data for the selected item numbers
-        # The filtering by market was for display and selection, now we need full data for chosen items.
-        if st.session_state.raw_df is None:
-            st.error("Raw data is not available for output generation.")
-            return None
+        if st.session_state.raw_df is None: st.error("Raw data unavailable."); return None
 
-        for combo_selection in st.session_state.final_items_for_download:
-            item_no_to_find = combo_selection['item_no']
-            article_no_to_find = combo_selection['article_no'] # Article No is used for price lookup
-            
-            # Get all data for this item_no from the original raw_df
-            item_data_row_series_df = st.session_state.raw_df[st.session_state.raw_df['Item No'] == item_no_to_find]
-            
-            if not item_data_row_series_df.empty:
-                item_data_row_series = item_data_row_series_df.iloc[0] # Should be unique by Item No
-                output_row_dict = {}
+        for combo in st.session_state.final_items_for_download:
+            item_no, article_no = combo['item_no'], combo['article_no']
+            item_data_df = st.session_state.raw_df[st.session_state.raw_df['Item No'] == item_no]
+            if not item_data_df.empty:
+                item_series = item_data_df.iloc[0]
+                row_dict = {col: item_series.get(col) for col in final_output_cols if col not in [ws_price_col_dyn, rt_price_col_dyn]}
                 
-                # Populate data from raw_df based on template columns (excluding price columns handled next)
-                for col_template_output in final_output_columns:
-                    if col_template_output == ws_price_col_name_dynamic or col_template_output == rt_price_col_name_dynamic:
-                        continue # Skip price columns, will be handled specifically
-                    # Find original column name if it was renamed for price
-                    original_col_name = col_template_output 
-                    # This mapping is tricky if template had generic "Wholesale price"
-                    # For now, assume other columns in final_output_columns directly map to raw_df or are new
-                    if col_template_output in item_data_row_series.index:
-                        output_row_dict[col_template_output] = item_data_row_series[col_template_output]
-                    else:
-                        # If a column from template is not in raw_df (e.g. a new column in template)
-                        output_row_dict[col_template_output] = None # Or some default value like "N/A"
+                # Wholesale Price
+                if not ws_prices.empty:
+                    article_col_ws = ws_prices.columns[0]
+                    price_df = ws_prices[ws_prices[article_col_ws].astype(str) == str(article_no)]
+                    row_dict[ws_price_col_dyn] = price_df.iloc[0][current_selected_currency_for_dl] if not price_df.empty and current_selected_currency_for_dl in price_df.columns and pd.notna(price_df.iloc[0][current_selected_currency_for_dl]) else "Price Not Found"
+                else: row_dict[ws_price_col_dyn] = "Wholesale Matrix Empty"
                 
-                # Wholesale Price Lookup using the appropriate price matrix
-                if not wholesale_prices_to_use.empty:
-                    # Ensure Article No. column is correctly identified (usually the first one)
-                    article_col_ws = wholesale_prices_to_use.columns[0]
-                    ws_price_row_df = wholesale_prices_to_use[wholesale_prices_to_use[article_col_ws].astype(str) == str(article_no_to_find)]
-                    if not ws_price_row_df.empty and current_selected_currency_for_dl in ws_price_row_df.columns:
-                        price_val = ws_price_row_df.iloc[0][current_selected_currency_for_dl]
-                        output_row_dict[ws_price_col_name_dynamic] = price_val if pd.notna(price_val) else "N/A"
-                    else:
-                        output_row_dict[ws_price_col_name_dynamic] = "Price Not Found"
-                else:
-                    output_row_dict[ws_price_col_name_dynamic] = "Wholesale Matrix Empty/Error"
-                
-                # Retail Price Lookup
-                if not retail_prices_to_use.empty:
-                    article_col_rt = retail_prices_to_use.columns[0]
-                    rt_price_row_df = retail_prices_to_use[retail_prices_to_use[article_col_rt].astype(str) == str(article_no_to_find)]
-                    if not rt_price_row_df.empty and current_selected_currency_for_dl in rt_price_row_df.columns:
-                        price_val = rt_price_row_df.iloc[0][current_selected_currency_for_dl]
-                        output_row_dict[rt_price_col_name_dynamic] = price_val if pd.notna(price_val) else "N/A"
-                    else:
-                        output_row_dict[rt_price_col_name_dynamic] = "Price Not Found"
-                else:
-                    output_row_dict[rt_price_col_name_dynamic] = "Retail Matrix Empty/Error"
-                
-                output_data.append(output_row_dict)
-            else:
-                st.warning(f"Item No {item_no_to_find} not found in raw data for output. Skipping.")
+                # Retail Price
+                if not rt_prices.empty:
+                    article_col_rt = rt_prices.columns[0]
+                    price_df = rt_prices[rt_prices[article_col_rt].astype(str) == str(article_no)]
+                    row_dict[rt_price_col_dyn] = price_df.iloc[0][current_selected_currency_for_dl] if not price_df.empty and current_selected_currency_for_dl in price_df.columns and pd.notna(price_df.iloc[0][current_selected_currency_for_dl]) else "Price Not Found"
+                else: row_dict[rt_price_col_dyn] = "Retail Matrix Empty"
+                output_data.append(row_dict)
+            else: st.warning(f"Item No {item_no} not found. Skipping.")
 
+        if not output_data: st.info("No data to output."); return None
+        output_df = pd.DataFrame(output_data, columns=final_output_cols)
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer: output_df.to_excel(writer, index=False, sheet_name='Masterdata Output')
+        return buffer.getvalue()
 
-        if not output_data:
-            st.info("No data to output after processing selections.")
-            return None
-
-        # Create DataFrame with the specific order of columns from final_output_columns
-        output_df = pd.DataFrame(output_data, columns=final_output_columns)
-        
-        output_excel_buffer = io.BytesIO()
-        with pd.ExcelWriter(output_excel_buffer, engine='xlsxwriter') as writer:
-            output_df.to_excel(writer, index=False, sheet_name='Masterdata Output')
-        return output_excel_buffer.getvalue()
-
-    # Enable download button only if items are selected AND a currency is chosen
     can_download_now = bool(st.session_state.final_items_for_download and st.session_state.selected_currency_session)
-
     if can_download_now:
         file_bytes = prepare_excel_for_download_final()
-        if file_bytes: # prepare_excel_for_download_final might return None on error
-            st.download_button(
-                label="Generate and Download Master Data File",
-                data=file_bytes,
-                file_name=f"masterdata_output_{st.session_state.selected_currency_session.replace(' ', '_').replace('.', '')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="final_download_action_button_v9", # Incremented key
-                help="Click to generate and download your customized master data file."
-            )
+        if file_bytes: 
+            st.download_button(label="Generate and Download Master Data File", data=file_bytes, file_name=f"masterdata_output_{st.session_state.selected_currency_session.replace(' ', '_').replace('.', '')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="final_download_button_v10", help="Click to download.")
     else:
-        # Provide a more informative help message for the disabled button
-        disabled_help_message = "Please select a currency (Step 1) and add items to your selection list (Step 2 & 3)."
-        if not st.session_state.selected_currency_session:
-            disabled_help_message = "Please select a currency in Step 1."
-        elif not st.session_state.final_items_for_download:
-            disabled_help_message = "Please select items in Step 2 and review them in Step 3."
-        
-        st.button(
-            "Generate Master Data File", 
-            key="generate_file_disabled_button_v7", # Incremented key
-            disabled=True, 
-            help=disabled_help_message
-        )
+        help_msg = "Select currency (Step 1) and add items (Step 2 & 3)."
+        if not st.session_state.selected_currency_session: help_msg = "Select currency first."
+        elif not st.session_state.final_items_for_download: help_msg = "Select items first."
+        st.button("Generate Master Data File", key="generate_disabled_button_v8", disabled=True, help=help_msg)
 
-else: # files_loaded_successfully is False
-    st.error("Application cannot start. One or more critical data files could not be loaded correctly, or required columns are missing. Please check file paths, formats, and column names in your .xlsx files and ensure they are in the same directory as the script.")
+else: 
+    st.error("Application cannot start. Critical data files missing or corrupt. Check paths and file integrity.")
 
 
-# --- Styling (Optional) ---
-# The extensive CSS styling block is assumed to be here and unchanged.
-# For brevity, it's not repeated in this code block.
+# --- Styling ---
 st.markdown("""
 <style>
     /* Apply background color to the main app container and body */
-    .stApp, body {
-        background-color: #EFEEEB !important;
-    }
-    .main .block-container {
-        background-color: #EFEEEB !important;
-        padding-top: 2rem; 
-    }
-
-    h1, h2, h3 { 
-        text-transform: none !important; 
-    }
+    .stApp, body { background-color: #EFEEEB !important; }
+    .main .block-container { background-color: #EFEEEB !important; padding-top: 2rem; }
+    h1, h2, h3 { text-transform: none !important; }
     h1 { color: #333; } 
-    h2 { 
-        color: #1E40AF;
-        padding-bottom: 5px;
-        margin-top: 30px;
-        margin-bottom: 15px;
-    }
-     h3 { 
-        color: #1E40AF;
-        font-size: 1.25em;
-        padding-bottom: 3px;
-        margin-top: 20px;
-        margin-bottom: 10px;
-    }
+    h2 { color: #1E40AF; padding-bottom: 5px; margin-top: 30px; margin-bottom: 15px; }
+    h3 { color: #1E40AF; font-size: 1.25em; padding-bottom: 3px; margin-top: 20px; margin-bottom: 10px; }
 
     /* Styling for the matrix-like headers */
-    div[data-testid="stCaptionContainer"] > div > p { 
-        font-weight: bold;
-        font-size: 0.8em !important; 
-        color: #31333F !important; 
-        text-align: center;
-        white-space: normal;
-        overflow-wrap:break-word;
-        line-height: 1.2; 
-        padding: 2px;
-    }
-    .upholstery-header { 
-        white-space: normal !important;
-        overflow: visible !important;
-        text-overflow: clip !important;
-        display: block;
-        max-width: 100%;
-        line-height: 1.2;
-        color: #31333F !important; 
-        text-transform: capitalize !important; 
-        font-weight: bold !important;
-        font-size: 0.8em !important;
-    }
-    div[data-testid="stCaptionContainer"] small { /* Color numbers */
-        color: #31333F !important; 
-        font-weight: normal !important; 
-        font-size: 0.75em !important;
-    }
-
-    div[data-testid="stCaptionContainer"] img { 
-        max-height: 25px !important;
-        width: 25px !important;
-        object-fit: cover !important;
-        margin-right:2px;
-    }
-    .swatch-placeholder {
-        width:25px !important;
-        height:25px !important;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.6em;
-        color: #ccc;
-        border: 1px dashed #ddd;
-        background-color: #f9f9f9;
-    }
-    .zoom-instruction {
-        font-size: 0.6em;
-        color: #555;
-        text-align: left;
-        padding-top: 10px;
-    }
-
-    /* --- Logo Styling --- */
-    div[data-testid="stImage"],
-    div[data-testid="stImage"] img {
-        border-radius: 0 !important;
-        overflow: visible !important;
-    }
-
-    /* --- Matrix Row and Cell Content Alignment --- */
-    .product-name-cell {
-        display: flex;
-        align-items: center; 
-        height: auto; 
-        min-height: 30px; 
-        line-height: 1.3; 
-        max-height: calc(1.3em * 2 + 4px); 
-        overflow-y: hidden; 
-        color: #31333F !important; 
-        font-weight: normal !important; 
-        font-size: 0.8em !important; 
-        padding-right: 5px; 
-        word-break: break-word; 
-        box-sizing: border-box;
-    }
-
-    /* Container for checkbox or unavailable cell content within each matrix data cell */
-    div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] { 
-        height: 30px !important; 
-        min-height: 30px !important;
-        display: flex !important;
-        align-items: center !important; 
-        justify-content: center !important; 
-        padding: 0 !important; 
-        margin: 0 !important;
-        box-sizing: border-box;
-    }
-    /* This ensures the stMarkdownContainer (when used for unavailable cells, now removed) also behaves for centering */
-    /* Keeping it in case grey boxes are re-introduced, but it won't affect empty cells */
-    div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] > div[data-testid="stMarkdown"] > div[data-testid="stMarkdownContainer"] {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 100%; 
-        height: 100%; 
-        box-sizing: border-box;
-    }
+    div[data-testid="stCaptionContainer"] > div > p { font-weight: bold; font-size: 0.8em !important; color: #31333F !important; text-align: center; white-space: normal; overflow-wrap:break-word; line-height: 1.2; padding: 2px; }
+    .upholstery-header { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; display: block; max-width: 100%; line-height: 1.2; color: #31333F !important; text-transform: capitalize !important; font-weight: bold !important; font-size: 0.8em !important; }
+    div[data-testid="stCaptionContainer"] small { color: #31333F !important; font-weight: normal !important; font-size: 0.75em !important; }
+    div[data-testid="stCaptionContainer"] img { max-height: 25px !important; width: 25px !important; object-fit: cover !important; margin-right:2px; }
+    .swatch-placeholder { width:25px !important; height:25px !important; display: flex; align-items: center; justify-content: center; font-size: 0.6em; color: #ccc; border: 1px dashed #ddd; background-color: #f9f9f9; }
+    .zoom-instruction { font-size: 0.6em; color: #555; text-align: left; padding-top: 10px; }
+    .select-all-label { font-size: 0.75em; color: #31333F; text-align: right; padding-right: 5px; margin-top: auto; margin-bottom: 7px; font-weight:bold;}
+    .checkbox-placeholder { width: 20px; height: 20px; /* Same as checkbox */ margin: auto; /* Center it if needed */ }
 
 
-    /* --- Checkbox Styling --- */
-    div.stCheckbox { /* The main wrapper for st.checkbox widget */
-        margin: 0 !important;
-        padding: 0 !important; 
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 20px !important; 
-        height: 20px !important; 
-        box-sizing: border-box !important;
-    }
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] { /* The label that wraps the visual parts */
-        width: 20px !important; 
-        height: 20px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        box-sizing: border-box !important;
-    }
-    /* Visual box of the checkbox - UNCHECKED STATE */
-    /* Targets the first span child of the label, which is the visual box */
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child { 
-        background-color: #FFFFFF !important; 
-        border: 1px solid #5B4A14 !important; 
-        box-shadow: none !important;
-        width: 20px !important; 
-        height: 20px !important;
-        border-radius: 0.25rem !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        box-sizing: border-box !important;
-        display: flex !important; /* To center the SVG checkmark */
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    /* Checkmark SVG - UNCHECKED STATE (effectively invisible) */
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child svg {
-        fill: #FFFFFF !important; 
-        width: 12px !important; /* Adjust size of SVG if needed */
-        height: 12px !important;
-    }
+    /* Logo Styling */
+    div[data-testid="stImage"], div[data-testid="stImage"] img { border-radius: 0 !important; overflow: visible !important; }
 
-    /* Visual box of the checkbox - CHECKED STATE */
-    /* Uses :has() to style the span when the input sibling is checked */
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child {
-        background-color: #5B4A14 !important; 
-        border-color: #5B4A14 !important; 
-    }
-    /* Checkmark SVG - CHECKED STATE (white) */
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child svg {
-        fill: #FFFFFF !important; 
-    }
+    /* Matrix Row and Cell Content Alignment */
+    .product-name-cell { display: flex; align-items: center; height: auto; min-height: 30px; line-height: 1.3; max-height: calc(1.3em * 2 + 4px); overflow-y: hidden; color: #31333F !important; font-weight: normal !important; font-size: 0.8em !important; padding-right: 5px; word-break: break-word; box-sizing: border-box; }
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] { height: 30px !important; min-height: 30px !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; margin: 0 !important; box-sizing: border-box; }
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] > div[data-testid="stMarkdown"] > div[data-testid="stMarkdownContainer"] { display: flex !important; align-items: center !important; justify-content: center !important; width: 100%; height: 100%; box-sizing: border-box; }
 
-    /* --- Unavailable Matrix Cell Styling - REMOVED as per request --- */
+    /* Checkbox Styling */
+    div.stCheckbox { margin: 0 !important; padding: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; width: 20px !important; height: 20px !important; box-sizing: border-box !important; }
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] { width: 20px !important; height: 20px !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; margin: 0 !important; box-sizing: border-box !important; }
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child { background-color: #FFFFFF !important; border: 1px solid #5B4A14 !important; box-shadow: none !important; width: 20px !important; height: 20px !important; border-radius: 0.25rem !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child svg { fill: #FFFFFF !important; width: 12px !important; height: 12px !important; }
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child { background-color: #5B4A14 !important; border-color: #5B4A14 !important; }
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child svg { fill: #FFFFFF !important; }
 
+    hr { margin-top: 0.5rem !important; margin-bottom: 0.5rem !important; border-top: 1px solid #dee2e6; }
+    section[data-testid="stSidebar"] hr { margin-top: 0.1rem !important; margin-bottom: 0.1rem !important; }
 
-    hr {
-        margin-top: 0.5rem !important;
-        margin-bottom: 0.5rem !important;
-        border-top: 1px solid #dee2e6;
-    }
-    section[data-testid="stSidebar"] hr {
-        margin-top: 0.1rem !important;
-        margin-bottom: 0.1rem !important;
-    }
+    /* Button Styling */
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"], div[data-testid="stButton"] button[data-testid^="stBaseButton"] { border: 1px solid #5B4A14 !important; background-color: #FFFFFF !important; color: #5B4A14 !important; padding: 0.375rem 0.75rem !important; font-size: 1rem !important; line-height: 1.5 !important; border-radius: 0.25rem !important; transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important; font-weight: 500 !important; text-transform: none !important; }
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"] p, div[data-testid="stButton"] button[data-testid^="stBaseButton"] p { color: inherit !important; text-transform: none !important; margin: 0 !important; }
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:hover, div[data-testid="stButton"] button[data-testid^="stBaseButton"]:hover { background-color: #5B4A14 !important; color: #FFFFFF !important; border-color: #5B4A14 !important; }
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:hover p, div[data-testid="stButton"] button[data-testid^="stBaseButton"]:hover p { color: #FFFFFF !important; }
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:active, div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:focus, div[data-testid="stButton"] button[data-testid^="stBaseButton"]:active, div[data-testid="stButton"] button[data-testid^="stBaseButton"]:focus { background-color: #4A3D10 !important; color: #FFFFFF !important; border-color: #4A3D10 !important; box-shadow: 0 0 0 0.2rem rgba(91, 74, 20, 0.4) !important; outline: none !important; }
+    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:active p, div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:focus p, div[data-testid="stButton"] button[data-testid^="stBaseButton"]:active p, div[data-testid="stButton"] button[data-testid^="stBaseButton"]:focus p { color: #FFFFFF !important; }
 
+    small { font-size:0.9em; display:block; line-height:1.1; }
+    /* Multiselect Tags Styling */
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-ei, div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-eh, div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] { background-color: transparent !important; background-image: none !important; border: 1px solid #000000 !important; border-radius: 0.25rem !important; padding: 0.2em 0.4em !important; line-height: 1.2 !important; }
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[title] { color: #000000 !important; font-size: 0.85em !important; line-height: inherit !important; margin-right: 4px !important; vertical-align: middle !important; }
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] { display: inline-flex !important; align-items: center !important; }
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] svg { fill: #000000 !important; width: 1em !important; height: 1em !important; vertical-align: middle !important; }
 
-    /* --- Button Styling (General and Download Button) --- */
-    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"],
-    div[data-testid="stButton"] button[data-testid^="stBaseButton"] {
-        border: 1px solid #5B4A14 !important;
-        background-color: #FFFFFF !important;
-        color: #5B4A14 !important;
-        padding: 0.375rem 0.75rem !important;
-        font-size: 1rem !important;
-        line-height: 1.5 !important;
-        border-radius: 0.25rem !important;
-        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
-        font-weight: 500 !important;
-        text-transform: none !important; 
-    }
-    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"] p,
-    div[data-testid="stButton"] button[data-testid^="stBaseButton"] p {
-        color: inherit !important; 
-        text-transform: none !important;
-        margin: 0 !important; 
-    }
+    /* Input fields and dropdowns styling */
+    div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:first-child, div[data-testid="stMultiSelect"] div[data-baseweb="input"], div[data-testid="stMultiSelect"] > div > div[data-baseweb="select"] > div:first-child { background-color: #FFFFFF !important; color: #000000 !important; border: 1px solid #CCCCCC !important; }
+    div[data-baseweb="popover"] ul li { color: #000000 !important; background-color: #FFFFFF !important; }
+    div[data-baseweb="popover"] ul li:hover { background-color: #f0f0f0 !important; }
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:first-child > div > div, div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div:first-child > div > div { color: #000000 !important; }
+    div[data-testid="stTextInput"] input:focus, div[data-testid="stSelectbox"] div[data-baseweb="select"][aria-expanded="true"] > div:first-child, div[data-testid="stMultiSelect"] div[data-baseweb="input"]:focus-within, div[data-testid="stMultiSelect"] div[aria-expanded="true"] { border-color: #5B4A14 !important; box-shadow: 0 0 0 1px #5B4A14 !important; }
 
-    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:hover,
-    div[data-testid="stButton"] button[data-testid^="stBaseButton"]:hover {
-        background-color: #5B4A14 !important;
-        color: #FFFFFF !important;
-        border-color: #5B4A14 !important;
-    }
-    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:hover p,
-    div[data-testid="stButton"] button[data-testid^="stBaseButton"]:hover p {
-        color: #FFFFFF !important; 
-    }
-
-    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:active,
-    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:focus,
-    div[data-testid="stButton"] button[data-testid^="stBaseButton"]:active,
-    div[data-testid="stButton"] button[data-testid^="stBaseButton"]:focus {
-        background-color: #4A3D10 !important; 
-        color: #FFFFFF !important;
-        border-color: #4A3D10 !important;
-        box-shadow: 0 0 0 0.2rem rgba(91, 74, 20, 0.4) !important;
-        outline: none !important;
-    }
-    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:active p,
-    div[data-testid="stDownloadButton"] button[data-testid^="stBaseButton"]:focus p,
-    div[data-testid="stButton"] button[data-testid^="stBaseButton"]:active p,
-    div[data-testid="stButton"] button[data-testid^="stBaseButton"]:focus p {
-        color: #FFFFFF !important; 
-    }
-
-
-    small {
-        font-size:0.9em;
-        display:block;
-        line-height:1.1;
-    }
-    /* --- Multiselect Tags Styling --- */
-    /* This targets the selected tag itself within the stMultiSelect widget */
-    /* Adding .st-ei and .st-eh to the selector for higher specificity against Streamlit's defaults */
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-ei,
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"].st-eh,
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] /* Fallback */
-     {
-        background-color: transparent !important; 
-        background-image: none !important; 
-        border: 1px solid #000000 !important; /* Black border */
-        border-radius: 0.25rem !important; 
-        padding: 0.2em 0.4em !important; /* Adjusted padding */
-        line-height: 1.2 !important; 
-    }
-    /* Text inside selected tag */
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[title] {
-        color: #000000 !important; /* Black text */
-        font-size: 0.85em !important;
-        line-height: inherit !important; 
-        margin-right: 4px !important; 
-        vertical-align: middle !important; 
-    }
-    /* Close 'x' icon container span */
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] {
-        display: inline-flex !important; 
-        align-items: center !important;
-    }
-    /* Close 'x' icon SVG in selected tag */
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] span[data-baseweb="tag"][aria-selected="true"] > span[aria-hidden="true"] svg {
-        fill: #000000 !important; /* Black 'x' icon */
-        width: 1em !important; 
-        height: 1em !important;
-        vertical-align: middle !important; 
-    }
-
-
-    /* White background and black text for input fields and dropdowns */
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:first-child,
-    div[data-testid="stMultiSelect"] div[data-baseweb="input"],
-    div[data-testid="stMultiSelect"] > div > div[data-baseweb="select"] > div:first-child {
-        background-color: #FFFFFF !important;
-        color: #000000 !important;
-        border: 1px solid #CCCCCC !important;
-    }
-    /* Text color for dropdown list items */
-    div[data-baseweb="popover"] ul li {
-        color: #000000 !important;
-        background-color: #FFFFFF !important;
-    }
-    div[data-baseweb="popover"] ul li:hover {
-        background-color: #f0f0f0 !important;
-    }
-     /* Text color for selected value in dropdown when not expanded */
-    div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:first-child > div > div,
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div:first-child > div > div {
-         color: #000000 !important;
-    }
-
-
-    /* Active/focused border color for inputs and dropdowns */
-    div[data-testid="stTextInput"] input:focus,
-    div[data-testid="stSelectbox"] div[data-baseweb="select"][aria-expanded="true"] > div:first-child,
-    div[data-testid="stMultiSelect"] div[data-baseweb="input"]:focus-within,
-    div[data-testid="stMultiSelect"] div[aria-expanded="true"] {
-        border-color: #5B4A14 !important;
-        box-shadow: 0 0 0 1px #5B4A14 !important;
-    }
-    /* --- Styling for Warning Boxes --- */
-    div[data-baseweb="alert"] {
-    background-color: #f0f2f6; /* Lys grå baggrund */
-    color: #31333F; /* Mørk grå tekst (for læsbarhed) */
-    border: 1px solid #D1D5DB; /* Lidt mørkere grå kant */
-    border-radius: 0.25rem;
-}
-
-    /* Sikrer at teksten inde i boksen får den rigtige farve */
-    div[data-baseweb="alert"] div[data-testid="stMarkdownContainer"] p {
-    color: #31333F !important;
-    }
-
-    /* Farven på advarsels-ikonet */
-d   iv[data-baseweb="alert"] svg {
-    fill: #4B5563 !important; /* Mellem-grå til ikonet */
-}
+    /* Styling for ALL Info/Warning/Alert Boxes */
+    div[data-testid="stAlert"] { background-color: #f0f2f6 !important; border: 1px solid #D1D5DB !important; border-radius: 0.25rem !important; }
+    div[data-testid="stAlert"] > div:first-child { background-color: transparent !important; }
+    div[data-testid="stAlert"] div[data-testid="stMarkdownContainer"], div[data-testid="stAlert"] div[data-testid="stMarkdownContainer"] p { color: #31333F !important; }
+    div[data-testid="stAlert"] svg { fill: #4B5563 !important; }
 </style>
 """, unsafe_allow_html=True)
