@@ -63,7 +63,7 @@ This tool simplifies selecting MTO products and generating the data you need for
     * Choose a product family to view its available products and upholstery options.
     * Select your desired product, upholstery, and color combinations directly in the matrix.
     * Use the "Select All" checkbox at the top of an upholstery color column to select/deselect all available products in that column.
-    * **Step 2a: Specify base colors:** For items where multiple base colors are available, you can select one or more options.
+    * **Step 2a: Specify base colors:** For items requiring base colors, they will be grouped by product family. For each family, you can select a specific base color to apply to all applicable products within that family, or choose base colors individually per product using the dropdowns.
 * **Step 3: Review selections:**
     * Review the final list of configured products. You can remove items from this list if needed.
 * **Step 4: Generate master data file:**
@@ -140,7 +140,7 @@ if files_loaded_successfully:
     europe_currencies = []
     gbp_ie_currencies = []
     EXPECTED_EUROPE_CURRENCIES = ['DACH - EURO', 'DKK', 'EURO', 'NOK', 'PLN', 'SEK', 'AUD']
-    EXPECTED_GBP_IE_CURRENCIES = ['GBP', 'IE - EUR'] # Corrected based on previous error
+    EXPECTED_GBP_IE_CURRENCIES = ['GBP', 'IE - EUR'] 
 
     try:
         if st.session_state.wholesale_prices_df is not None and not st.session_state.wholesale_prices_df.empty:
@@ -239,13 +239,11 @@ if files_loaded_successfully:
                         'resolved_base_if_single': unique_base_colors[0] if len(unique_base_colors) == 1 else (pd.NA if not unique_base_colors else None)
                     }
                     st.session_state.matrix_selected_generic_items[generic_item_key] = item_data
-                    # st.toast(f"Selected: {prod_name} / {uph_type} / {uph_color}", icon="➕") # Optional: can be too noisy with select all
             else: 
                 if generic_item_key in st.session_state.matrix_selected_generic_items:
                     del st.session_state.matrix_selected_generic_items[generic_item_key]
                     if generic_item_key in st.session_state.user_chosen_base_colors_for_items:
                         del st.session_state.user_chosen_base_colors_for_items[generic_item_key]
-                    # st.toast(f"Deselected: {prod_name} / {uph_type} / {uph_color}", icon="➖") # Optional
 
         # --- Callback for "Select All" column checkbox ---
         def handle_select_all_column_toggle(uph_type_col, uph_color_col, products_in_col, select_all_key):
@@ -253,7 +251,6 @@ if files_loaded_successfully:
             current_selected_family_for_key = st.session_state.selected_family_session
 
             for prod_name in products_in_col:
-                # Check if this product actually exists with this upholstery/color combination
                 item_exists_df_col = st.session_state.filtered_raw_df[
                     (st.session_state.filtered_raw_df['Product Family'] == current_selected_family_for_key) &
                     (st.session_state.filtered_raw_df['Product Display Name'] == prod_name) &
@@ -263,9 +260,8 @@ if files_loaded_successfully:
                 if not item_exists_df_col.empty:
                     generic_item_key_col = f"{current_selected_family_for_key}_{prod_name}_{uph_type_col}_{uph_color_col}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
                     
-                    if is_all_selected_for_column_now: # Select all items in this column
+                    if is_all_selected_for_column_now: 
                         if generic_item_key_col not in st.session_state.matrix_selected_generic_items:
-                            # Add item (logic copied from handle_matrix_cb_toggle's "add" part)
                             unique_base_colors_col = item_exists_df_col['Base Color Cleaned'].dropna().unique().tolist()
                             first_item_match_col = item_exists_df_col.iloc[0]
                             item_data_col = {
@@ -278,21 +274,42 @@ if files_loaded_successfully:
                                 'resolved_base_if_single': unique_base_colors_col[0] if len(unique_base_colors_col) == 1 else (pd.NA if not unique_base_colors_col else None)
                             }
                             st.session_state.matrix_selected_generic_items[generic_item_key_col] = item_data_col
-                    else: # Deselect all items in this column
+                    else: 
                         if generic_item_key_col in st.session_state.matrix_selected_generic_items:
                             del st.session_state.matrix_selected_generic_items[generic_item_key_col]
                             if generic_item_key_col in st.session_state.user_chosen_base_colors_for_items:
                                 del st.session_state.user_chosen_base_colors_for_items[generic_item_key_col]
             
-            if is_all_selected_for_column_now:
-                st.toast(f"All items in column '{uph_type_col} - {uph_color_col}' selected.", icon="✅")
-            else:
-                st.toast(f"All items in column '{uph_type_col} - {uph_color_col}' deselected.", icon="❌")
+            action = "selected" if is_all_selected_for_column_now else "deselected"
+            st.toast(f"All available items in column '{uph_type_col} - {uph_color_col}' {action}.", icon="✅" if is_all_selected_for_column_now else "❌")
 
-
+        # --- Callback for individual item's base color multiselect ---
         def handle_base_color_multiselect_change(item_key_for_base_select):
             multiselect_widget_key = f"ms_base_{item_key_for_base_select}"
             st.session_state.user_chosen_base_colors_for_items[item_key_for_base_select] = st.session_state[multiselect_widget_key]
+
+        # --- Callback for family-level "Select All [Base Color X] for this family" ---
+        def handle_family_base_color_select_all_toggle(family_name_cb, base_color_cb, items_in_family_cb, checkbox_key_cb):
+            is_checked = st.session_state[checkbox_key_cb]
+            action_count = 0
+            for item_data_cb in items_in_family_cb:
+                item_key_cb = item_data_cb['key']
+                # Ensure this item *can* have this base color
+                if base_color_cb in item_data_cb['available_bases']:
+                    current_bases_for_item = st.session_state.user_chosen_base_colors_for_items.get(item_key_cb, [])
+                    if is_checked: # Add this base color
+                        if base_color_cb not in current_bases_for_item:
+                            st.session_state.user_chosen_base_colors_for_items[item_key_cb] = current_bases_for_item + [base_color_cb]
+                            action_count += 1
+                    else: # Remove this base color
+                        if base_color_cb in current_bases_for_item:
+                            new_bases = [b for b in current_bases_for_item if b != base_color_cb]
+                            st.session_state.user_chosen_base_colors_for_items[item_key_cb] = new_bases
+                            action_count += 1
+            
+            if action_count > 0:
+                action_desc = "applied to" if is_checked else "removed from"
+                st.toast(f"Base color '{base_color_cb}' {action_desc} {action_count} applicable product(s) in {family_name_cb}.", icon="✅" if is_checked else "❌")
 
 
         if selected_family and selected_family != DEFAULT_NO_SELECTION and 'Product Family' in df_for_display.columns:
@@ -343,15 +360,14 @@ if files_loaded_successfully:
                             if i > 0: 
                                 with col_widget: st.caption(f"<small>{data_column_map[i-1]['uph_color']}</small>", unsafe_allow_html=True)
                         
-                        # --- "Select All" Checkbox Row ---
-                        cols_select_all_header = st.columns([2.5] + [1] * num_data_columns, vertical_alignment="bottom")
-                        cols_select_all_header[0].markdown("<div class='select-all-label'>Select All:</div>", unsafe_allow_html=True) # Label for the row
+                        # --- "Select All" Checkbox Row for Upholstery Columns ---
+                        cols_select_all_header = st.columns([2.5] + [1] * num_data_columns, vertical_alignment="center") 
+                        cols_select_all_header[0].markdown("<div class='select-all-label'>Select All:</div>", unsafe_allow_html=True) 
                         for i, col_widget_sa in enumerate(cols_select_all_header[1:]):
                             current_col_map_entry = data_column_map[i]
                             uph_type_for_col_sa = current_col_map_entry['uph_type']
                             uph_color_for_col_sa = current_col_map_entry['uph_color']
                             
-                            # Determine if all existing items in this column are selected
                             all_in_col_selected = True
                             num_selectable_in_col = 0
                             for prod_name_sa in products_in_family:
@@ -364,22 +380,19 @@ if files_loaded_successfully:
                                     num_selectable_in_col += 1
                                     generic_item_key_sa = f"{selected_family}_{prod_name_sa}_{uph_type_for_col_sa}_{uph_color_for_col_sa}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
                                     if generic_item_key_sa not in st.session_state.matrix_selected_generic_items:
-                                        all_in_col_selected = False
-                                        break
-                            if num_selectable_in_col == 0 : all_in_col_selected = False # If no items exist in column, it's not "all selected"
+                                        all_in_col_selected = False; break
+                            if num_selectable_in_col == 0 : all_in_col_selected = False
 
                             select_all_key = f"select_all_cb_{selected_family}_{uph_type_for_col_sa}_{uph_color_for_col_sa}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
                             
                             with col_widget_sa:
-                                if num_selectable_in_col > 0: # Only show checkbox if there's something to select
+                                if num_selectable_in_col > 0: 
                                     st.checkbox(" ", value=all_in_col_selected, key=select_all_key, 
                                                 on_change=handle_select_all_column_toggle, 
                                                 args=(uph_type_for_col_sa, uph_color_for_col_sa, products_in_family, select_all_key),
                                                 label_visibility="collapsed",
                                                 help=f"Select/Deselect all for {uph_type_for_col_sa} - {uph_color_for_col_sa}")
-                                else:
-                                    st.markdown("<div class='checkbox-placeholder'></div>", unsafe_allow_html=True)
-
+                                else: st.markdown("<div class='checkbox-placeholder'></div>", unsafe_allow_html=True)
 
                         st.markdown("---") 
 
@@ -390,19 +403,16 @@ if files_loaded_successfully:
                             for i, col_widget in enumerate(cols_product_row[1:]): 
                                 current_col_uph_type_filter = data_column_map[i]['uph_type']
                                 current_col_uph_color_filter = data_column_map[i]['uph_color']
-                                
                                 item_exists_df = family_df[
                                     (family_df['Product Display Name'] == prod_name) &
                                     (family_df['Upholstery Type'] == current_col_uph_type_filter) &
                                     (family_df['Upholstery Color'].astype(str).fillna("N/A") == current_col_uph_color_filter)
                                 ]
-                                
                                 cell_container = col_widget.container() 
                                 if not item_exists_df.empty:
                                     cb_key_str = f"cb_{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ","_").replace("/","_").replace("(","").replace(")","")
                                     generic_item_key_for_check = f"{selected_family}_{prod_name}_{current_col_uph_type_filter}_{current_col_uph_color_filter}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
                                     is_gen_selected = generic_item_key_for_check in st.session_state.matrix_selected_generic_items
-                                    
                                     cell_container.checkbox(" ", value=is_gen_selected, key=cb_key_str, 
                                                             on_change=handle_matrix_cb_toggle, 
                                                             args=(prod_name, current_col_uph_type_filter, current_col_uph_color_filter, cb_key_str), 
@@ -413,16 +423,88 @@ if files_loaded_successfully:
             if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"Select product family.")
 
 
-    # --- Step 2a: Specify Base Colors ---
+    # --- Step 2a: Specify Base Colors (Grouped by Family) ---
     items_needing_base_choice_now = [item_data for item_data in st.session_state.matrix_selected_generic_items.values() if item_data.get('requires_base_choice')]
+    
     if items_needing_base_choice_now:
         st.subheader("Step 2a: Specify base colors")
-        for generic_item in items_needing_base_choice_now:
-            item_key, multiselect_key = generic_item['key'], f"ms_base_{generic_item['key']}"
-            st.markdown(f"**{generic_item['product']}** ({generic_item['upholstery_type']} - {generic_item['upholstery_color']})")
-            st.multiselect(f"Available base colors:", options=generic_item['available_bases'], default=st.session_state.user_chosen_base_colors_for_items.get(item_key, []), key=multiselect_key, on_change=handle_base_color_multiselect_change, args=(item_key,))
-            st.markdown("---")
 
+        # Group items by product family
+        items_by_family_for_base_step = {}
+        for item_data in items_needing_base_choice_now:
+            family_name = item_data['family']
+            if family_name not in items_by_family_for_base_step:
+                items_by_family_for_base_step[family_name] = []
+            items_by_family_for_base_step[family_name].append(item_data)
+
+        if not items_by_family_for_base_step:
+            st.info("No selected items currently require base color specification.")
+        else:
+            for family_name_for_base, items_in_this_family for_base in items_by_family_for_base_step.items():
+                st.markdown(f"#### {family_name_for_base}")
+
+                # Determine all unique base colors available for *this family group*
+                unique_bases_for_family_group = set()
+                for item_in_fam in items_in_this_family for_base:
+                    unique_bases_for_family_group.update(item_in_fam['available_bases'])
+                
+                sorted_unique_bases_for_family_group = sorted(list(unique_bases_for_family_group))
+
+                if not sorted_unique_bases_for_family_group:
+                    st.caption("No common base colors available or no items need base selection in this family.")
+                else:
+                    st.markdown("<small>Apply specific base color to all applicable products in this family:</small>", unsafe_allow_html=True)
+                    # Create checkboxes for each unique base color in this family group
+                    # Use 2 columns for these checkboxes for better layout if many base colors
+                    num_base_cols = 2 if len(sorted_unique_bases_for_family_group) > 3 else 1 
+                    base_color_cols = st.columns(num_base_cols)
+                    col_idx = 0
+                    for base_color_option in sorted_unique_bases_for_family_group:
+                        with base_color_cols[col_idx % num_base_cols]:
+                            family_base_cb_key = f"fam_base_all_{family_name_for_base}_{base_color_option}".replace(" ","_")
+                            
+                            # Determine if this base_color_option is selected for ALL applicable items in this family
+                            is_this_base_selected_for_all_applicable_in_fam = True
+                            num_applicable_for_this_base = 0
+                            for item_in_fam_check in items_in_this_family for_base:
+                                if base_color_option in item_in_fam_check['available_bases']:
+                                    num_applicable_for_this_base +=1
+                                    chosen_bases_for_item = st.session_state.user_chosen_base_colors_for_items.get(item_in_fam_check['key'], [])
+                                    if base_color_option not in chosen_bases_for_item:
+                                        is_this_base_selected_for_all_applicable_in_fam = False
+                                        break
+                            if num_applicable_for_this_base == 0: # If no items can even have this base color
+                                is_this_base_selected_for_all_applicable_in_fam = False
+
+
+                            if num_applicable_for_this_base > 0: # Only show checkbox if it applies to at least one item
+                                st.checkbox(f"{base_color_option}", 
+                                            value=is_this_base_selected_for_all_applicable_in_fam, 
+                                            key=family_base_cb_key,
+                                            on_change=handle_family_base_color_select_all_toggle,
+                                            args=(family_name_for_base, base_color_option, items_in_this_family for_base, family_base_cb_key),
+                                            help=f"Apply/Remove '{base_color_option}' for all applicable products in {family_name_for_base}.")
+                        col_idx +=1
+                    st.markdown("---") # Separator after family-level base selectors
+
+                # List individual products within this family for base color selection
+                for generic_item in items_in_this_family for_base:
+                    item_key = generic_item['key']
+                    multiselect_key = f"ms_base_{item_key}"
+                    
+                    st.markdown(f"**{generic_item['product']}** ({generic_item['upholstery_type']} - {generic_item['upholstery_color']})")
+                    
+                    st.multiselect(
+                        label=f"Available base colors for this item:", 
+                        options=generic_item['available_bases'],
+                        default=st.session_state.user_chosen_base_colors_for_items.get(item_key, []),
+                        key=multiselect_key,
+                        on_change=handle_base_color_multiselect_change, # Simple callback
+                        args=(item_key,)
+                    )
+                    st.markdown("---") # Separator between items
+                st.markdown("---") # Separator between families
+    
     # --- Step 3: Review Selections ---
     st.header("Step 3: Review selections")
     _current_final_items = [] 
@@ -472,9 +554,15 @@ if files_loaded_successfully:
                                 st.session_state.user_chosen_base_colors_for_items[original_matrix_key].remove(chosen_base_to_remove)
                                 if not st.session_state.user_chosen_base_colors_for_items[original_matrix_key]:
                                     del st.session_state.user_chosen_base_colors_for_items[original_matrix_key] 
-                                    del st.session_state.matrix_selected_generic_items[original_matrix_key] 
-                    else:
+                                    # Only delete from matrix_selected_generic_items if NO bases are selected for an item that requires base choice
+                                    # And if all its base choices were removed via this button.
+                                    # This logic might need refinement if a generic item should persist even with no bases selected yet.
+                                    # For now, if all chosen bases are removed, and it requires a choice, it's effectively deselected.
+                                    if not st.session_state.user_chosen_base_colors_for_items.get(original_matrix_key): # Check if list is now empty or key gone
+                                         del st.session_state.matrix_selected_generic_items[original_matrix_key]
+                    else: # Item did not require base choice, or it's a single base item
                         del st.session_state.matrix_selected_generic_items[original_matrix_key]
+                        # Clean up if it was mistakenly in user_chosen_base_colors_for_items
                         if original_matrix_key in st.session_state.user_chosen_base_colors_for_items:
                              del st.session_state.user_chosen_base_colors_for_items[original_matrix_key]
                 st.session_state.final_items_for_download.pop(i)
@@ -568,6 +656,7 @@ st.markdown("""
     h1 { color: #333; } 
     h2 { color: #1E40AF; padding-bottom: 5px; margin-top: 30px; margin-bottom: 15px; }
     h3 { color: #1E40AF; font-size: 1.25em; padding-bottom: 3px; margin-top: 20px; margin-bottom: 10px; }
+    h4 { color: #102A63; font-size: 1.1em; margin-top: 15px; margin-bottom: 5px; } /* Styling for new h4 family headers */
 
     /* Styling for the matrix-like headers */
     div[data-testid="stCaptionContainer"] > div > p { font-weight: bold; font-size: 0.8em !important; color: #31333F !important; text-align: center; white-space: normal; overflow-wrap:break-word; line-height: 1.2; padding: 2px; }
@@ -576,8 +665,18 @@ st.markdown("""
     div[data-testid="stCaptionContainer"] img { max-height: 25px !important; width: 25px !important; object-fit: cover !important; margin-right:2px; }
     .swatch-placeholder { width:25px !important; height:25px !important; display: flex; align-items: center; justify-content: center; font-size: 0.6em; color: #ccc; border: 1px dashed #ddd; background-color: #f9f9f9; }
     .zoom-instruction { font-size: 0.6em; color: #555; text-align: left; padding-top: 10px; }
-    .select-all-label { font-size: 0.75em; color: #31333F; text-align: right; padding-right: 5px; margin-top: auto; margin-bottom: 7px; font-weight:bold;}
-    .checkbox-placeholder { width: 20px; height: 20px; /* Same as checkbox */ margin: auto; /* Center it if needed */ }
+    
+    .select-all-label { 
+        font-size: 0.75em; 
+        color: #31333F; 
+        text-align: right; 
+        padding-right: 5px; 
+        font-weight:bold;
+        display: flex; /* Added for vertical alignment */
+        align-items: center; /* Vertically align text with checkbox */
+        height: 100%; /* Ensure it takes full cell height */
+    }
+    .checkbox-placeholder { width: 20px; height: 20px; margin: auto; }
 
 
     /* Logo Styling */
