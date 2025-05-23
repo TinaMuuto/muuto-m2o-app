@@ -38,40 +38,28 @@ def construct_product_display_name(row):
 
 # --- Helper Function to Clean Article Number Columns ---
 def clean_article_no_column(series):
-    """
-    Cleans an article number series to ensure consistent string representation.
-    Handles cases like "68300.0" becoming "68300".
-    """
     if series is None:
         return None
-    # First, convert to string and strip to handle mixed types and spaces
-    s = series.astype(str).str.strip().str.upper() # Standardize to uppercase
-    # Attempt to convert to numeric, then int (to remove .0), then back to string
+    s = series.astype(str).str.strip().str.upper() 
     def try_convert(x):
-        if x is None or x == 'NAN' or x == '<NA>': # Handle common Pandas NA string representations
-            return None # Or an empty string, depending on desired behavior for missing keys
+        if x is None or x == 'NAN' or x == '<NA>' or x == '':
+            return None 
         try:
-            # Try converting to float then int to remove decimal part if it's like ".0"
             return str(int(float(x)))
         except ValueError:
-            return x # Return original stripped & uppercased string if conversion fails
+            return x 
     cleaned_s = s.apply(try_convert)
     return cleaned_s
-
 
 # --- Main App Logic ---
 
 # --- Logo and Title Section ---
 top_col1, top_col_spacer, top_col2 = st.columns([5.5, 0.5, 1])
-
 with top_col1:
     st.title("Welcome to the Muuto M2O master data generator")
-
 with top_col2:
-    if os.path.exists(LOGO_PATH):
-        st.image(LOGO_PATH, width=120)
-    else:
-        st.error(f"Muuto Logo not found. Expected at: {LOGO_PATH}.")
+    if os.path.exists(LOGO_PATH): st.image(LOGO_PATH, width=120)
+    else: st.error(f"Muuto Logo not found. Expected at: {LOGO_PATH}.")
 
 # --- App Introduction ---
 st.markdown("""
@@ -89,6 +77,7 @@ Here’s how it works:
 """)
 
 # --- Initialize session state variables ---
+# (Initialize as before)
 if 'raw_df_original' not in st.session_state: st.session_state.raw_df_original = None
 if 'raw_df' not in st.session_state: st.session_state.raw_df = None
 if 'wholesale_prices_df' not in st.session_state: st.session_state.wholesale_prices_df = None
@@ -99,7 +88,8 @@ if 'matrix_selected_generic_items' not in st.session_state: st.session_state.mat
 if 'user_chosen_base_colors_for_items' not in st.session_state: st.session_state.user_chosen_base_colors_for_items = {}
 if 'final_items_for_download' not in st.session_state: st.session_state.final_items_for_download = []
 if 'selected_currency_session' not in st.session_state: st.session_state.selected_currency_session = None
-if 'article_no_key_name' not in st.session_state: st.session_state.article_no_key_name = "Article No" # Default key name
+if 'article_no_key_name' not in st.session_state: st.session_state.article_no_key_name = "Article No"
+
 
 # --- Load Data Directly from XLSX files ---
 @st.cache_data
@@ -109,8 +99,9 @@ def load_data():
     retail_prices_data = None
     template_cols_data = None
     data_load_errors_list = []
-    # Default key name, will be updated by Europe price file if present, or first UK if Europe missing.
-    article_no_key_name_determined = "Article No" 
+    # This will be updated by the first price file that is successfully read.
+    # It must be stripped at the end.
+    article_no_key_name_from_file = "Article No" # Default, will be updated
 
     # Load Raw Data
     if os.path.exists(RAW_DATA_XLSX_PATH):
@@ -126,10 +117,8 @@ def load_data():
                 raw_df_original_data['Upholstery Type'] = raw_df_original_data['Upholstery Type'].astype(str).str.strip()
                 if 'Article No' in raw_df_original_data.columns:
                      raw_df_original_data['Article No'] = clean_article_no_column(raw_df_original_data['Article No'])
-                if 'Item No' in raw_df_original_data.columns: # Also clean Item No for consistency if used in keys
+                if 'Item No' in raw_df_original_data.columns: 
                      raw_df_original_data['Item No'] = clean_article_no_column(raw_df_original_data['Item No'])
-
-
         except Exception as e:
             data_load_errors_list.append(f"Error loading Raw Data from '{RAW_DATA_XLSX_PATH}': {e}")
     else:
@@ -138,57 +127,61 @@ def load_data():
     # --- Price Data Loading and Merging ---
     europe_ws_df, europe_rt_df = None, None
     uk_ws_df, uk_rt_df = None, None
+    key_name_is_set = False
 
-    def process_price_df(df, determined_key_name):
-        if df is None or df.empty:
-            return None, determined_key_name
+    def _process_single_price_df(df_input, key_name_to_use):
+        if df_input is None or df_input.empty:
+            return None
+        df = df_input.copy()
+        current_first_col_name = df.columns[0]
+        if current_first_col_name != key_name_to_use:
+            df.rename(columns={current_first_col_name: key_name_to_use}, inplace=True)
         
-        current_key_name = df.columns[0]
-        # If this is the first price df being processed and it's Europe, it sets the determined_key_name
-        # Otherwise, it renames its first column to the already determined_key_name
-        if determined_key_name == "Article No" and current_key_name != "Article No": # Default was "Article No"
-             determined_key_name = current_key_name # This df sets the key name
-        elif current_key_name != determined_key_name:
-            df.rename(columns={current_key_name: determined_key_name}, inplace=True)
-        
-        df[determined_key_name] = clean_article_no_column(df[determined_key_name])
-        df.drop_duplicates(subset=[determined_key_name], keep='first', inplace=True)
-        return df, determined_key_name
+        df[key_name_to_use] = clean_article_no_column(df[key_name_to_use])
+        df.drop_duplicates(subset=[key_name_to_use], keep='first', inplace=True)
+        return df
 
     # Load Europe Prices
     if os.path.exists(PRICE_MATRIX_EUROPE_XLSX_PATH):
         try:
             temp_europe_ws_df = pd.read_excel(PRICE_MATRIX_EUROPE_XLSX_PATH, sheet_name=PRICE_MATRIX_WHOLESALE_SHEET)
-            europe_ws_df, article_no_key_name_determined = process_price_df(temp_europe_ws_df, article_no_key_name_determined)
-            
+            if temp_europe_ws_df is not None and not temp_europe_ws_df.empty:
+                article_no_key_name_from_file = temp_europe_ws_df.columns[0] # Set key name from this file
+                key_name_is_set = True
+                europe_ws_df = _process_single_price_df(temp_europe_ws_df, article_no_key_name_from_file)
+
             temp_europe_rt_df = pd.read_excel(PRICE_MATRIX_EUROPE_XLSX_PATH, sheet_name=PRICE_MATRIX_RETAIL_SHEET)
-            europe_rt_df, _ = process_price_df(temp_europe_rt_df, article_no_key_name_determined) # Key name already set
+            if temp_europe_rt_df is not None and not temp_europe_rt_df.empty:
+                 europe_rt_df = _process_single_price_df(temp_europe_rt_df, article_no_key_name_from_file) 
         except Exception as e:
             data_load_errors_list.append(f"Error loading European price data: {e}")
             europe_ws_df, europe_rt_df = None, None 
-    # else: # No error if Europe file is missing
 
     # Load UK/EI Prices
     if os.path.exists(PRICE_MATRIX_UK_XLSX_PATH):
         try:
             temp_uk_ws_df = pd.read_excel(PRICE_MATRIX_UK_XLSX_PATH, sheet_name=PRICE_MATRIX_WHOLESALE_SHEET)
-            # If Europe was missing, UK file might set the key name
-            uk_ws_df, article_no_key_name_determined = process_price_df(temp_uk_ws_df, article_no_key_name_determined if europe_ws_df is not None else uk_ws_df.columns[0] if temp_uk_ws_df is not None and not temp_uk_ws_df.empty else "Article No")
-
+            if temp_uk_ws_df is not None and not temp_uk_ws_df.empty:
+                if not key_name_is_set: # If Europe file didn't set the key name
+                    article_no_key_name_from_file = temp_uk_ws_df.columns[0]
+                    key_name_is_set = True
+                uk_ws_df = _process_single_price_df(temp_uk_ws_df, article_no_key_name_from_file)
 
             temp_uk_rt_df = pd.read_excel(PRICE_MATRIX_UK_XLSX_PATH, sheet_name=PRICE_MATRIX_RETAIL_SHEET)
-            uk_rt_df, _ = process_price_df(temp_uk_rt_df, article_no_key_name_determined)
+            if temp_uk_rt_df is not None and not temp_uk_rt_df.empty:
+                uk_rt_df = _process_single_price_df(temp_uk_rt_df, article_no_key_name_from_file)
         except Exception as e:
             data_load_errors_list.append(f"Error loading UK/EI price data: {e}")
             uk_ws_df, uk_rt_df = None, None
     
+    # Strip the determined key name itself
+    article_no_key_name_from_file = article_no_key_name_from_file.strip()
+
     # Merge Wholesale Prices
     if europe_ws_df is not None:
         wholesale_prices_data = europe_ws_df.copy()
         if uk_ws_df is not None:
-            # Ensure all columns except the key are suffixed if they overlap
-            cols_to_merge_uk_ws = [col for col in uk_ws_df.columns if col == article_no_key_name_determined or col not in wholesale_prices_data.columns or col.endswith("_uk")]
-            wholesale_prices_data = pd.merge(wholesale_prices_data, uk_ws_df[cols_to_merge_uk_ws], on=article_no_key_name_determined, how='outer', suffixes=('', '_uk'))
+            wholesale_prices_data = pd.merge(wholesale_prices_data, uk_ws_df, on=article_no_key_name_from_file, how='outer', suffixes=('', '_uk'))
     elif uk_ws_df is not None:
         wholesale_prices_data = uk_ws_df.copy()
 
@@ -196,19 +189,21 @@ def load_data():
     if europe_rt_df is not None:
         retail_prices_data = europe_rt_df.copy()
         if uk_rt_df is not None:
-            cols_to_merge_uk_rt = [col for col in uk_rt_df.columns if col == article_no_key_name_determined or col not in retail_prices_data.columns or col.endswith("_uk")]
-            retail_prices_data = pd.merge(retail_prices_data, uk_rt_df[cols_to_merge_uk_rt], on=article_no_key_name_determined, how='outer', suffixes=('', '_uk'))
+            retail_prices_data = pd.merge(retail_prices_data, uk_rt_df, on=article_no_key_name_from_file, how='outer', suffixes=('', '_uk'))
     elif uk_rt_df is not None:
         retail_prices_data = uk_rt_df.copy()
     
-    if wholesale_prices_data is None and retail_prices_data is None and not data_load_errors_list: # if no files found and no other errors
-        if not os.path.exists(PRICE_MATRIX_EUROPE_XLSX_PATH) and not os.path.exists(PRICE_MATRIX_UK_XLSX_PATH):
-             data_load_errors_list.append("No price matrix files (Europe or UK/EI) found. Cannot proceed with pricing.")
-        elif wholesale_prices_data is None:
-             data_load_errors_list.append("Wholesale price data could not be loaded or merged.")
-        elif retail_prices_data is None:
-            data_load_errors_list.append("Retail price data could not be loaded or merged.")
+    # Strip all column names in the final merged dataframes
+    if wholesale_prices_data is not None and not wholesale_prices_data.empty:
+        wholesale_prices_data.columns = [col.strip() for col in wholesale_prices_data.columns]
+    if retail_prices_data is not None and not retail_prices_data.empty:
+        retail_prices_data.columns = [col.strip() for col in retail_prices_data.columns]
 
+    if wholesale_prices_data is None and retail_prices_data is None and not data_load_errors_list:
+        if not os.path.exists(PRICE_MATRIX_EUROPE_XLSX_PATH) and not os.path.exists(PRICE_MATRIX_UK_XLSX_PATH):
+             data_load_errors_list.append("No price matrix files found.")
+        else: # Files existed but failed to load/merge into data
+            data_load_errors_list.append("Price data could not be loaded/merged. Check format and content.")
 
     # Load Template
     if os.path.exists(MASTERDATA_TEMPLATE_XLSX_PATH):
@@ -221,7 +216,8 @@ def load_data():
     else:
         data_load_errors_list.append(f"Template file not found: {MASTERDATA_TEMPLATE_XLSX_PATH}")
 
-    return raw_df_original_data, wholesale_prices_data, retail_prices_data, template_cols_data, data_load_errors_list, article_no_key_name_determined
+    return raw_df_original_data, wholesale_prices_data, retail_prices_data, template_cols_data, data_load_errors_list, article_no_key_name_from_file
+
 
 # Load data and manage success flag
 raw_df_original_loaded, wholesale_prices_df_loaded, retail_prices_df_loaded, template_cols_loaded, data_load_errors_list, article_no_key_name_loaded = load_data()
@@ -233,18 +229,16 @@ if files_loaded_successfully:
     st.session_state.wholesale_prices_df = wholesale_prices_df_loaded
     st.session_state.retail_prices_df = retail_prices_df_loaded
     st.session_state.template_cols = template_cols_loaded
-    st.session_state.article_no_key_name = article_no_key_name_loaded 
+    st.session_state.article_no_key_name = article_no_key_name_loaded # Store the cleaned, determined key name
 else:
     for error in data_load_errors_list:
-        st.error(error)
+        st.error(error) # Display all loading errors
 
 
 # --- Main Application Area (continues only if data loaded successfully) ---
 if files_loaded_successfully:
-    
     st.header("Step 1: Select your currency")
-    
-    def on_currency_change():
+    def on_currency_change(): # Reset selections if currency changes
         st.session_state.selected_family_session = DEFAULT_NO_SELECTION
         st.session_state.matrix_selected_generic_items = {}
         st.session_state.user_chosen_base_colors_for_items = {}
@@ -253,117 +247,94 @@ if files_loaded_successfully:
     try:
         currency_options = [DEFAULT_NO_SELECTION]
         if st.session_state.wholesale_prices_df is not None and not st.session_state.wholesale_prices_df.empty:
-            # Use the determined article_no_key_name for exclusion
-            key_for_price_matrix = st.session_state.article_no_key_name
-            currency_options.extend(sorted([
+            key_for_price_matrix = st.session_state.article_no_key_name # This is now stripped
+            
+            # Get all columns from wholesale_prices_df that are not the key column
+            all_potential_currencies = [
                 col for col in st.session_state.wholesale_prices_df.columns 
-                if col != key_for_price_matrix and str(col).strip() != "" and not str(col).endswith("_uk") # Exclude suffixed columns from merge
-            ]))
-            # Add _uk columns if they are distinct and not already present without suffix
-            uk_suffixed_cols = sorted([
-                col for col in st.session_state.wholesale_prices_df.columns
-                if col != key_for_price_matrix and str(col).strip() != "" and str(col).endswith("_uk")
-            ])
-            for uk_col in uk_suffixed_cols:
-                original_col_name = uk_col[:-3] # Remove _uk suffix
-                if original_col_name not in currency_options and uk_col not in currency_options : # Add if not a duplicate
-                     currency_options.append(uk_col)
+                if col != key_for_price_matrix and col.strip() != ""
+            ]
+            # Remove duplicates that might arise from _uk suffix if original also exists (prefer non-suffixed)
+            unique_currencies = []
+            seen_base_currencies = set()
+            for col in sorted(all_potential_currencies): # Sort to process base names first
+                if col.endswith("_uk"):
+                    base_name = col[:-3]
+                    if base_name not in seen_base_currencies:
+                        unique_currencies.append(col) # Add if base was not present
+                else:
+                    unique_currencies.append(col)
+                    seen_base_currencies.add(col)
+            currency_options.extend(sorted(list(set(unique_currencies)))) # Final sort after de-duplication logic
 
 
         if len(currency_options) == 1 and DEFAULT_NO_SELECTION in currency_options :
-             st.warning("No currency columns found in the loaded price matrices. Cannot select currency.")
+             st.warning("No currency columns found in loaded price matrices.")
 
         current_currency_idx = 0
         if st.session_state.selected_currency_session and st.session_state.selected_currency_session in currency_options:
             current_currency_idx = currency_options.index(st.session_state.selected_currency_session)
-        else:
-             st.session_state.selected_currency_session = None
+        else: st.session_state.selected_currency_session = None
 
-        selected_currency_choice = st.selectbox(
-            "Select Currency:", options=currency_options, index=current_currency_idx,
-            key="currency_selector_main_final", on_change=on_currency_change
-        )
+        selected_currency_choice = st.selectbox("Select Currency:", options=currency_options, index=current_currency_idx, key="currency_selector_main_final", on_change=on_currency_change)
         st.session_state.selected_currency_session = selected_currency_choice if selected_currency_choice != DEFAULT_NO_SELECTION else None
     
     except Exception as e:
         st.error(f"Error with currency selection: {e}")
         st.session_state.selected_currency_session = None
 
+    # Filter raw_df for display based on currency
     if st.session_state.selected_currency_session and st.session_state.raw_df_original is not None:
         selected_curr_upper = st.session_state.selected_currency_session.upper()
-        # Handle if currency name itself has _uk suffix for selection logic
-        market_check_curr = selected_curr_upper.replace("_UK", "")
-
+        market_check_curr = selected_curr_upper.replace("_UK", "") # For 'GBP_uk' etc.
         if market_check_curr in ['GBP', 'EI', 'IE']:
-            st.session_state.raw_df = st.session_state.raw_df_original[
-                st.session_state.raw_df_original['Market'].astype(str).str.upper() == 'UK'
-            ].copy()
+            st.session_state.raw_df = st.session_state.raw_df_original[st.session_state.raw_df_original['Market'].astype(str).str.upper() == 'UK'].copy()
         else:
-            st.session_state.raw_df = st.session_state.raw_df_original[
-                st.session_state.raw_df_original['Market'].astype(str).str.upper() != 'UK'
-            ].copy()
-    elif st.session_state.raw_df_original is not None:
-        st.session_state.raw_df = None
-    else:
-        st.session_state.raw_df = None
+            st.session_state.raw_df = st.session_state.raw_df_original[st.session_state.raw_df_original['Market'].astype(str).str.upper() != 'UK'].copy()
+    elif st.session_state.raw_df_original is not None: st.session_state.raw_df = None
+    else: st.session_state.raw_df = None
 
+    # --- Steps 2, 3, 4 ---
     if st.session_state.selected_currency_session and st.session_state.raw_df is not None:
         st.markdown("---")
         st.header("Step 2: Explore your options and choose your sofacombinations")
+        # (Matrix display logic - largely unchanged, ensure it uses st.session_state.raw_df)
         df_for_display = st.session_state.raw_df
         available_families_in_view = [DEFAULT_NO_SELECTION] + sorted(df_for_display['Product Family'].dropna().unique()) if 'Product Family' in df_for_display.columns else [DEFAULT_NO_SELECTION]
-        
         if st.session_state.selected_family_session not in available_families_in_view:
             st.session_state.selected_family_session = DEFAULT_NO_SELECTION
-
         selected_family_idx = available_families_in_view.index(st.session_state.selected_family_session)
         selected_family = st.selectbox("Select Product Family:", options=available_families_in_view, index=selected_family_idx, key="family_selector_main")
         st.session_state.selected_family_session = selected_family
 
-        def handle_matrix_cb_toggle(prod_name, uph_type, uph_color, checkbox_key_matrix):
+        def handle_matrix_cb_toggle(prod_name, uph_type, uph_color, checkbox_key_matrix): # Unchanged
             is_checked = st.session_state[checkbox_key_matrix]
             current_selected_family_for_key = st.session_state.selected_family_session 
             generic_item_key = f"{current_selected_family_for_key}_{prod_name}_{uph_type}_{uph_color}".replace(" ", "_").replace("/","_").replace("(","").replace(")","")
-
             if is_checked:
-                matching_items = st.session_state.raw_df[  
-                    (st.session_state.raw_df['Product Family'] == current_selected_family_for_key) &
-                    (st.session_state.raw_df['Product Display Name'] == prod_name) &
-                    (st.session_state.raw_df['Upholstery Type'].fillna("N/A") == uph_type) &
-                    (st.session_state.raw_df['Upholstery Color'].astype(str).fillna("N/A") == uph_color)
-                ]
+                matching_items = st.session_state.raw_df[ (st.session_state.raw_df['Product Family'] == current_selected_family_for_key) & (st.session_state.raw_df['Product Display Name'] == prod_name) & (st.session_state.raw_df['Upholstery Type'].fillna("N/A") == uph_type) & (st.session_state.raw_df['Upholstery Color'].astype(str).fillna("N/A") == uph_color) ]
                 if not matching_items.empty:
                     unique_base_colors = matching_items['Base Color Cleaned'].dropna().unique().tolist()
                     first_item_match = matching_items.iloc[0]
-                    item_data = {
-                        'key': generic_item_key, 'family': current_selected_family_for_key, 'product': prod_name,
-                        'upholstery_type': uph_type, 'upholstery_color': uph_color,
-                        'requires_base_choice': len(unique_base_colors) > 1,
-                        'available_bases': unique_base_colors if len(unique_base_colors) > 1 else [],
-                        'item_no_if_single_base': first_item_match['Item No'], # Already cleaned
-                        'article_no_if_single_base': first_item_match['Article No'], # Already cleaned
-                        'resolved_base_if_single': unique_base_colors[0] if len(unique_base_colors) == 1 else (pd.NA if not unique_base_colors and len(unique_base_colors) == 0 else None)
-                    }
+                    item_data = { 'key': generic_item_key, 'family': current_selected_family_for_key, 'product': prod_name, 'upholstery_type': uph_type, 'upholstery_color': uph_color, 'requires_base_choice': len(unique_base_colors) > 1, 'available_bases': unique_base_colors if len(unique_base_colors) > 1 else [], 'item_no_if_single_base': first_item_match['Item No'], 'article_no_if_single_base': first_item_match['Article No'], 'resolved_base_if_single': unique_base_colors[0] if len(unique_base_colors) == 1 else (pd.NA if not unique_base_colors and len(unique_base_colors) == 0 else None) }
                     st.session_state.matrix_selected_generic_items[generic_item_key] = item_data
                     st.toast(f"Selected: {prod_name} / {uph_type} / {uph_color}", icon="➕")
             else:
                 if generic_item_key in st.session_state.matrix_selected_generic_items:
                     del st.session_state.matrix_selected_generic_items[generic_item_key]
-                    if generic_item_key in st.session_state.user_chosen_base_colors_for_items:
-                        del st.session_state.user_chosen_base_colors_for_items[generic_item_key]
+                    if generic_item_key in st.session_state.user_chosen_base_colors_for_items: del st.session_state.user_chosen_base_colors_for_items[generic_item_key]
                     st.toast(f"Deselected: {prod_name} / {uph_type} / {uph_color}", icon="➖")
 
-        def handle_base_color_multiselect_change(item_key_for_base_select):
-            multiselect_widget_key = f"ms_base_{item_key_for_base_select}"
-            st.session_state.user_chosen_base_colors_for_items[item_key_for_base_select] = st.session_state[multiselect_widget_key]
+        def handle_base_color_multiselect_change(item_key_for_base_select): # Unchanged
+            st.session_state.user_chosen_base_colors_for_items[item_key_for_base_select] = st.session_state[f"ms_base_{item_key_for_base_select}"]
 
-        if selected_family and selected_family != DEFAULT_NO_SELECTION and 'Product Family' in df_for_display.columns:
+        if selected_family and selected_family != DEFAULT_NO_SELECTION and 'Product Family' in df_for_display.columns: # Matrix display logic as before
             family_df = df_for_display[df_for_display['Product Family'] == selected_family]
             if not family_df.empty and 'Upholstery Type' in family_df.columns:
                 products_in_family = sorted(family_df['Product Display Name'].dropna().unique())
                 upholstery_types_in_family = sorted(family_df['Upholstery Type'].dropna().unique())
-                if not products_in_family: st.info(f"No products found in: {selected_family} for the current market.")
-                elif not upholstery_types_in_family: st.info(f"No upholstery types for: {selected_family} for the current market.")
+                if not products_in_family: st.info(f"No products in: {selected_family} for current market.")
+                elif not upholstery_types_in_family: st.info(f"No upholstery types for: {selected_family} for current market.")
                 else:
                     header_upholstery_types, header_swatches, header_color_numbers, data_column_map = ["Product"], [" "], [" "], []
                     for uph_type_clean in upholstery_types_in_family:
@@ -374,10 +345,9 @@ if files_loaded_successfully:
                                 header_swatches.append(color_row['Image URL swatch'] if pd.notna(color_row['Image URL swatch']) else None)
                                 header_color_numbers.append(str(color_row['Upholstery Color']))
                                 data_column_map.append({'uph_type': uph_type_clean, 'uph_color': str(color_row['Upholstery Color']), 'swatch': color_row['Image URL swatch']})
-                    
                     num_data_columns = len(data_column_map)
                     if num_data_columns == 0: st.info(f"No upholstery/color combinations for: {selected_family}")
-                    else: # Matrix display as before
+                    else:
                         cols_uph_type_header = st.columns([2.5] + [1] * num_data_columns)
                         current_uph_type_header_display = None
                         for i, col_widget in enumerate(cols_uph_type_header):
@@ -415,7 +385,7 @@ if files_loaded_successfully:
                 if selected_family and selected_family != DEFAULT_NO_SELECTION : st.info(f"No data for: {selected_family} with current selections.")
         
         items_needing_base_choice_now = [item_data for item_data in st.session_state.matrix_selected_generic_items.values() if item_data.get('requires_base_choice')]
-        if items_needing_base_choice_now: # Base color selection logic as before
+        if items_needing_base_choice_now: # Base color selection as before
             st.subheader("Specify base colors for selected items") 
             for generic_item in items_needing_base_choice_now:
                 item_key, multiselect_key = generic_item['key'], f"ms_base_{generic_item['key']}"
@@ -425,7 +395,7 @@ if files_loaded_successfully:
                 st.multiselect("Available base colors:", options=valid_bases, default=current_selection, key=multiselect_key, on_change=handle_base_color_multiselect_change, args=(item_key,))
                 st.markdown("---")
 
-        st.header("Step 3: Review your list") # Review selections logic as before
+        st.header("Step 3: Review your list") # Review selections as before
         _current_final_items = []
         for key, gen_item_data in st.session_state.matrix_selected_generic_items.items():
             if not gen_item_data['requires_base_choice']:
@@ -438,15 +408,11 @@ if files_loaded_successfully:
                     if not specific_item_df.empty:
                         actual_item = specific_item_df.iloc[0]
                         _current_final_items.append({"description": f"{gen_item_data['family']} / {gen_item_data['product']} / {gen_item_data['upholstery_type']} / {gen_item_data['upholstery_color']} / Base: {bc}", "item_no": actual_item['Item No'], "article_no": actual_item['Article No'], "key_in_matrix": key, "chosen_base": bc})
-        
         temp_final_list_review, seen_item_keys_review = [], set()
         for item_rev in _current_final_items:
             unique_final_item_key = f"{item_rev['item_no']}_{item_rev.get('chosen_base', 'NO_BASE')}"
-            if unique_final_item_key not in seen_item_keys_review:
-                temp_final_list_review.append(item_rev)
-                seen_item_keys_review.add(unique_final_item_key)
+            if unique_final_item_key not in seen_item_keys_review: temp_final_list_review.append(item_rev); seen_item_keys_review.add(unique_final_item_key)
         st.session_state.final_items_for_download = temp_final_list_review
-
         if st.session_state.final_items_for_download: # Review list display and remove logic as before
             st.markdown("**Current Selections for Download:**")
             for i, combo in enumerate(st.session_state.final_items_for_download):
@@ -459,15 +425,11 @@ if files_loaded_successfully:
                             chosen_base_to_remove = combo['chosen_base']
                             if original_matrix_key in st.session_state.user_chosen_base_colors_for_items and chosen_base_to_remove in st.session_state.user_chosen_base_colors_for_items[original_matrix_key]:
                                 st.session_state.user_chosen_base_colors_for_items[original_matrix_key].remove(chosen_base_to_remove)
-                                if not st.session_state.user_chosen_base_colors_for_items[original_matrix_key]:
-                                    del st.session_state.user_chosen_base_colors_for_items[original_matrix_key]
-                                    del st.session_state.matrix_selected_generic_items[original_matrix_key]
+                                if not st.session_state.user_chosen_base_colors_for_items[original_matrix_key]: del st.session_state.user_chosen_base_colors_for_items[original_matrix_key]; del st.session_state.matrix_selected_generic_items[original_matrix_key]
                         else:
                             del st.session_state.matrix_selected_generic_items[original_matrix_key]
-                            if original_matrix_key in st.session_state.user_chosen_base_colors_for_items:
-                                del st.session_state.user_chosen_base_colors_for_items[original_matrix_key]
-                    st.toast(f"Removed: {combo['description']}", icon="🗑️")
-                    st.rerun()
+                            if original_matrix_key in st.session_state.user_chosen_base_colors_for_items: del st.session_state.user_chosen_base_colors_for_items[original_matrix_key]
+                    st.toast(f"Removed: {combo['description']}", icon="🗑️"); st.rerun()
             st.markdown("---")
         else: st.info("Your list is empty. Please select products in Step 2.")
 
@@ -476,53 +438,30 @@ if files_loaded_successfully:
             if not st.session_state.final_items_for_download or not st.session_state.selected_currency_session: return None
             current_selected_currency = st.session_state.selected_currency_session
             ws_price_col, rt_price_col = f"Wholesale price ({current_selected_currency})", f"Retail price ({current_selected_currency})"
-            
-            # Ensure final_cols uses the dynamic price column names correctly
-            final_cols_temp = []
-            for col_template_name in st.session_state.template_cols:
-                if col_template_name.lower() == "wholesale price":
-                    final_cols_temp.append(ws_price_col)
-                elif col_template_name.lower() == "retail price":
-                    final_cols_temp.append(rt_price_col)
-                else:
-                    final_cols_temp.append(col_template_name)
-            final_cols = list(dict.fromkeys(final_cols_temp)) # Remove duplicates, preserve order
-
+            final_cols_temp = [ws_price_col if col.lower() == "wholesale price" else (rt_price_col if col.lower() == "retail price" else col) for col in st.session_state.template_cols]
+            final_cols = list(dict.fromkeys(final_cols_temp))
             output_data = []
-            # Use the determined key name for price lookup from session state
             price_matrix_key_column = st.session_state.article_no_key_name 
 
             for combo in st.session_state.final_items_for_download:
-                # Fetch full item data from the original, un-market-filtered raw_df
                 item_data_row_df = st.session_state.raw_df_original[st.session_state.raw_df_original['Item No'] == combo['item_no']]
                 if not item_data_row_df.empty:
                     item_data_row = item_data_row_df.iloc[0].copy()
-                    output_row = {}
-                    for col_name in final_cols: # Iterate through the final desired columns
-                        if col_name == ws_price_col or col_name == rt_price_col:
-                            continue # Prices handled separately
-                        output_row[col_name] = item_data_row.get(col_name) # Get value if column exists in raw_df_original
-
-                    # This is the cleaned Article No from raw_df_original for the current item
-                    # It was cleaned during load_data
-                    lookup_article_no = item_data_row.get(st.session_state.article_no_key_name) # Use the same key name as in price matrix
+                    output_row = {col: item_data_row.get(col) for col in final_cols if col not in [ws_price_col, rt_price_col]}
+                    lookup_article_no = item_data_row.get(price_matrix_key_column) # This is already cleaned
                     
-                    if lookup_article_no is None: # If article no is missing for this item
-                        output_row[ws_price_col] = "ArticleNo Missing in Raw"
-                        output_row[rt_price_col] = "ArticleNo Missing in Raw"
-                        output_data.append(output_row)
-                        continue
+                    if lookup_article_no is None:
+                        output_row[ws_price_col], output_row[rt_price_col] = "ArticleNo Missing", "ArticleNo Missing"
+                        output_data.append(output_row); continue
 
                     # Wholesale Price
                     if st.session_state.wholesale_prices_df is not None:
-                        # Key column in price DF is already cleaned
                         ws_price_df_match = st.session_state.wholesale_prices_df[st.session_state.wholesale_prices_df[price_matrix_key_column] == lookup_article_no]
                         if not ws_price_df_match.empty and current_selected_currency in ws_price_df_match.columns:
                             price = ws_price_df_match.iloc[0][current_selected_currency]
                             output_row[ws_price_col] = price if pd.notna(price) else "N/A"
                         else: output_row[ws_price_col] = "Price Not Found"
                     else: output_row[ws_price_col] = "Matrix Error"
-                    
                     # Retail Price
                     if st.session_state.retail_prices_df is not None:
                         rt_price_df_match = st.session_state.retail_prices_df[st.session_state.retail_prices_df[price_matrix_key_column] == lookup_article_no]
@@ -534,30 +473,27 @@ if files_loaded_successfully:
                     output_data.append(output_row)
             
             if not output_data: return None
-            output_df = pd.DataFrame(output_data, columns=final_cols) # Ensure correct column order
+            output_df = pd.DataFrame(output_data, columns=final_cols)
             excel_buffer = io.BytesIO()
-            with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                output_df.to_excel(writer, index=False, sheet_name='Masterdata Output')
+            with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer: output_df.to_excel(writer, index=False, sheet_name='Masterdata Output')
             return excel_buffer.getvalue()
 
-        if st.session_state.final_items_for_download and st.session_state.selected_currency_session: # Download button logic as before
+        if st.session_state.final_items_for_download and st.session_state.selected_currency_session:
             file_bytes = prepare_excel_for_download_final()
             if file_bytes:
-                st.download_button(label="Generate", data=file_bytes, file_name=f"masterdata_output_{st.session_state.selected_currency_session.replace(' ', '_')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="download_button_final_v2")
+                st.download_button(label="Generate", data=file_bytes, file_name=f"masterdata_output_{st.session_state.selected_currency_session.replace(' ', '_')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="download_button_final_v3")
         else:
-            st.button("Generate", disabled=True, key="generate_disabled_final_v2", help="Select currency and items first.")
+            st.button("Generate", disabled=True, key="generate_disabled_final_v3", help="Select currency and items first.")
 
     elif not st.session_state.selected_currency_session and st.session_state.raw_df_original is not None:
         st.info("Please select a currency in Step 1 to proceed.")
-
 elif not files_loaded_successfully and data_load_errors_list:
-    # Errors already displayed by the loop in the data loading section
     st.error("Application initialization failed. Please review error messages above.")
-elif not files_loaded_successfully: # General fallback if files_loaded_successfully is False but no specific errors were listed
-    st.error("An unexpected issue occurred while initializing the application. Please check your data files and script configuration.")
-
+elif not files_loaded_successfully:
+    st.error("An unexpected issue occurred while initializing the application.")
 
 # --- Styling (Original CSS from user's initial code) ---
+# (CSS block remains unchanged from your original)
 st.markdown("""
 <style>
     /* Apply background color to the main app container and body */
