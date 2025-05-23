@@ -42,7 +42,7 @@ def construct_product_display_name(row):
 top_col1, top_col_spacer, top_col2 = st.columns([5.5, 0.5, 1])
 
 with top_col1:
-    st.title("Muuto made-to-order master data tool") # Sentence case
+    st.title("Muuto M2O master data generator") # Sentence case
 
 with top_col2:
     if os.path.exists(LOGO_PATH):
@@ -53,7 +53,6 @@ with top_col2:
 
 # --- App Introduction ---
 st.markdown("""
-Welcome to the Muuto M2O master data generator
  
 Select your preferred M2O sofa combinations — and instantly generate all the data you need.
  
