@@ -440,12 +440,11 @@ if files_loaded_successfully:
         if not items_by_family_for_base_step:
             st.info("No selected items currently require base color specification.")
         else:
-            for family_name_for_base, items_in_this_family_for_base in items_by_family_for_base_step.items(): # Corrected variable name
+            for family_name_for_base, items_in_this_family_for_base in items_by_family_for_base_step.items(): 
                 st.markdown(f"#### {family_name_for_base}")
 
-                # Determine all unique base colors available for *this family group*
                 unique_bases_for_family_group = set()
-                for item_in_fam in items_in_this_family_for_base: # Corrected variable name
+                for item_in_fam in items_in_this_family_for_base: 
                     unique_bases_for_family_group.update(item_in_fam['available_bases'])
                 
                 sorted_unique_bases_for_family_group = sorted(list(unique_bases_for_family_group))
@@ -454,17 +453,26 @@ if files_loaded_successfully:
                     st.caption("No common base colors available or no items need base selection in this family.")
                 else:
                     st.markdown("<small>Apply specific base color to all applicable products in this family:</small>", unsafe_allow_html=True)
-                    # Create checkboxes for each unique base color in this family group
-                    num_base_cols = 2 if len(sorted_unique_bases_for_family_group) > 3 else 1 
-                    base_color_cols = st.columns(num_base_cols)
+                    
+                    num_unique_bases = len(sorted_unique_bases_for_family_group)
+                    if num_unique_bases <= 2:
+                        num_base_cols_layout = num_unique_bases if num_unique_bases > 0 else 1
+                    elif num_unique_bases <= 4:
+                        num_base_cols_layout = 2
+                    elif num_unique_bases <= 6:
+                        num_base_cols_layout = 3
+                    else: # more than 6
+                        num_base_cols_layout = 4
+                    
+                    base_color_cols = st.columns(num_base_cols_layout)
                     col_idx = 0
                     for base_color_option in sorted_unique_bases_for_family_group:
-                        with base_color_cols[col_idx % num_base_cols]:
-                            family_base_cb_key = f"fam_base_all_{family_name_for_base}_{base_color_option}".replace(" ","_")
+                        with base_color_cols[col_idx % num_base_cols_layout]:
+                            family_base_cb_key = f"fam_base_all_{family_name_for_base}_{base_color_option}".replace(" ","_").replace("/","_").replace("(","").replace(")","") # Added replace for slash and parentheses
                             
                             is_this_base_selected_for_all_applicable_in_fam = True
                             num_applicable_for_this_base = 0
-                            for item_in_fam_check in items_in_this_family_for_base: # Corrected variable name
+                            for item_in_fam_check in items_in_this_family_for_base: 
                                 if base_color_option in item_in_fam_check['available_bases']:
                                     num_applicable_for_this_base +=1
                                     chosen_bases_for_item = st.session_state.user_chosen_base_colors_for_items.get(item_in_fam_check['key'], [])
@@ -479,12 +487,12 @@ if files_loaded_successfully:
                                             value=is_this_base_selected_for_all_applicable_in_fam, 
                                             key=family_base_cb_key,
                                             on_change=handle_family_base_color_select_all_toggle,
-                                            args=(family_name_for_base, base_color_option, items_in_this_family_for_base, family_base_cb_key), # Corrected variable name
+                                            args=(family_name_for_base, base_color_option, items_in_this_family_for_base, family_base_cb_key), 
                                             help=f"Apply/Remove '{base_color_option}' for all applicable products in {family_name_for_base}.")
                         col_idx +=1
                     st.markdown("---") 
 
-                for generic_item in items_in_this_family_for_base: # Corrected variable name
+                for generic_item in items_in_this_family_for_base: 
                     item_key = generic_item['key']
                     multiselect_key = f"ms_base_{item_key}"
                     
