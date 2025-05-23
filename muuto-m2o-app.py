@@ -1020,5 +1020,22 @@ st.markdown("""
         border-color: #5B4A14 !important;
         box-shadow: 0 0 0 1px #5B4A14 !important;
     }
+    /* --- Styling for Warning Boxes --- */
+    div[data-baseweb="alert"] {
+    background-color: #f0f2f6; /* Lys grå baggrund */
+    color: #31333F; /* Mørk grå tekst (for læsbarhed) */
+    border: 1px solid #D1D5DB; /* Lidt mørkere grå kant */
+    border-radius: 0.25rem;
+}
+
+    /* Sikrer at teksten inde i boksen får den rigtige farve */
+    div[data-baseweb="alert"] div[data-testid="stMarkdownContainer"] p {
+    color: #31333F !important;
+    }
+
+    /* Farven på advarsels-ikonet */
+d   iv[data-baseweb="alert"] svg {
+    fill: #4B5563 !important; /* Mellem-grå til ikonet */
+}
 </style>
 """, unsafe_allow_html=True)
