@@ -476,7 +476,6 @@ if files_loaded_successfully:
                                         key=family_base_cb_key,
                                         on_change=handle_family_base_color_select_all_toggle,
                                         args=(family_name_for_base, base_color_option, items_in_this_family_for_base, family_base_cb_key)
-                                        # Tooltip removed: help=f"Apply/Remove '{base_color_option}' for all applicable products in {family_name_for_base}."
                                         )
                     st.markdown("---") 
 
@@ -672,13 +671,73 @@ st.markdown("""
     div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] { height: 30px !important; min-height: 30px !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; margin: 0 !important; box-sizing: border-box; }
     div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] > div[data-testid="stMarkdown"] > div[data-testid="stMarkdownContainer"] { display: flex !important; align-items: center !important; justify-content: center !important; width: 100%; height: 100%; box-sizing: border-box; }
 
-    /* Checkbox Styling */
-    div.stCheckbox { margin: 0 !important; padding: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; width: 20px !important; height: 20px !important; box-sizing: border-box !important; }
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] { width: 20px !important; height: 20px !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; margin: 0 !important; box-sizing: border-box !important; }
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child { background-color: #FFFFFF !important; border: 1px solid #5B4A14 !important; box-shadow: none !important; width: 20px !important; height: 20px !important; border-radius: 0.25rem !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; display: flex !important; align-items: center !important; justify-content: center !important; }
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child svg { fill: #FFFFFF !important; width: 12px !important; height: 12px !important; }
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child { background-color: #5B4A14 !important; border-color: #5B4A14 !important; }
-    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child svg { fill: #FFFFFF !important; }
+    /* Checkbox Styling - Revised for proper label display */
+    div[data-testid="stCheckbox"] { /* The main wrapper for st.checkbox widget */
+        width: auto !important; /* Allow widget to take necessary width */
+        min-height: 28px; /* Ensure consistent height, can be adjusted */
+        display: flex; /* Added to help with internal alignment if needed */
+        align-items: center; /* Added to help with internal alignment if needed */
+    }
+
+    /* The label element that wraps the visual box AND the text */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] {
+        display: flex !important; /* Align visual box and text container horizontally */
+        align-items: center !important; /* Vertical alignment */
+        width: auto !important; /* Allow label to expand with text */
+        height: auto !important; /* Allow label to expand with text */
+        padding: 0 !important; 
+        margin: 0 !important; 
+        cursor: pointer; 
+    }
+
+    /* Visual box of the checkbox */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child { 
+        background-color: #FFFFFF !important; 
+        border: 1px solid #5B4A14 !important; 
+        box-shadow: none !important;
+        width: 20px !important;  
+        height: 20px !important; 
+        min-width: 20px !important; 
+        min-height: 20px !important;
+        border-radius: 0.25rem !important;
+        margin-right: 0.5rem !important; /* Space between box and label text */
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        display: flex !important; 
+        align-items: center !important;
+        justify-content: center !important;
+        flex-shrink: 0; /* Prevent the visual box from shrinking */
+    }
+
+    /* Checkmark SVG - UNCHECKED STATE */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child svg {
+        fill: #FFFFFF !important; 
+        width: 12px !important; 
+        height: 12px !important;
+    }
+
+    /* Visual box of the checkbox - CHECKED STATE */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child {
+        background-color: #5B4A14 !important; 
+        border-color: #5B4A14 !important; 
+    }
+    /* Checkmark SVG - CHECKED STATE */
+    div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child svg {
+        fill: #FFFFFF !important; 
+    }
+
+    /* Styling for the actual label text container */
+    div[data-testid="stCheckbox"] div[data-testid="stWidgetLabel"] {
+        white-space: nowrap !important; /* Prevent text from wrapping */
+        padding-left: 0 !important; 
+        display: flex;
+        align-items: center;
+    }
+    div[data-testid="stCheckbox"] div[data-testid="stWidgetLabel"] p {
+         margin-bottom: 0 !important; 
+         line-height: 1.2 !important; /* Adjust line-height if needed */
+    }
+
 
     hr { margin-top: 0.5rem !important; margin-bottom: 0.5rem !important; border-top: 1px solid #dee2e6; }
     section[data-testid="stSidebar"] hr { margin-top: 0.1rem !important; margin-bottom: 0.1rem !important; }
