@@ -14,7 +14,7 @@ st.set_page_config(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RAW_DATA_XLSX_PATH = os.path.join(BASE_DIR, "raw-data.xlsx")
 PRICE_MATRIX_EUROPE_XLSX_PATH = os.path.join(BASE_DIR, "price-matrix_EUROPE.xlsx")
-PRICE_MATRIX_GBP_IE_XLSX_PATH = os.path.join(BASE_DIR, "price-matrix_GBP-IE.xlsx") # New file path
+PRICE_MATRIX_GBP_EI_XLSX_PATH = os.path.join(BASE_DIR, "price-matrix_GBP-EE.xlsx") # New file path
 MASTERDATA_TEMPLATE_XLSX_PATH = os.path.join(BASE_DIR, "Masterdata-output-template.xlsx")
 LOGO_PATH = os.path.join(BASE_DIR, "muuto_logo.png")
 
@@ -73,8 +73,8 @@ Here’s how it works:
 if 'raw_df' not in st.session_state: st.session_state.raw_df = None
 if 'wholesale_prices_df' not in st.session_state: st.session_state.wholesale_prices_df = None # Europe prices
 if 'retail_prices_df' not in st.session_state: st.session_state.retail_prices_df = None # Europe prices
-if 'wholesale_prices_gbp_ie_df' not in st.session_state: st.session_state.wholesale_prices_gbp_ie_df = None # GBP/IE prices
-if 'retail_prices_gbp_ie_df' not in st.session_state: st.session_state.retail_prices_gbp_ie_df = None # GBP/IE prices
+if 'wholesale_prices_gbp_ei_df' not in st.session_state: st.session_state.wholesale_prices_gbp_ei_df = None # GBP/IE prices
+if 'retail_prices_gbp_ei_df' not in st.session_state: st.session_state.retail_prices_gbp_ei_df = None # GBP/IE prices
 if 'filtered_raw_df' not in st.session_state: st.session_state.filtered_raw_df = None # Data filtered by currency/market
 if 'template_cols' not in st.session_state: st.session_state.template_cols = None
 if 'selected_family_session' not in st.session_state: st.session_state.selected_family_session = None
@@ -125,16 +125,16 @@ if files_loaded_successfully and st.session_state.wholesale_prices_df is None: #
         files_loaded_successfully = False
 
 # Load GBP/IE prices
-if files_loaded_successfully and st.session_state.wholesale_prices_gbp_ie_df is None: # Check if already loaded
-    if os.path.exists(PRICE_MATRIX_GBP_IE_XLSX_PATH):
+if files_loaded_successfully and st.session_state.wholesale_prices_gbp_ei_df is None: # Check if already loaded
+    if os.path.exists(PRICE_MATRIX_GBP_EI_XLSX_PATH):
         try:
-            st.session_state.wholesale_prices_gbp_ie_df = pd.read_excel(PRICE_MATRIX_GBP_IE_XLSX_PATH, sheet_name=PRICE_MATRIX_WHOLESALE_SHEET)
-            st.session_state.retail_prices_gbp_ie_df = pd.read_excel(PRICE_MATRIX_GBP_IE_XLSX_PATH, sheet_name=PRICE_MATRIX_RETAIL_SHEET)
+            st.session_state.wholesale_prices_gbp_ei_df = pd.read_excel(PRICE_MATRIX_GBP_EI_XLSX_PATH, sheet_name=PRICE_MATRIX_WHOLESALE_SHEET)
+            st.session_state.retail_prices_gbp_ei_df = pd.read_excel(PRICE_MATRIX_GBP_EI_XLSX_PATH, sheet_name=PRICE_MATRIX_RETAIL_SHEET)
         except Exception as e:
-            st.error(f"Error loading GBP/IE Prices from '{PRICE_MATRIX_GBP_IE_XLSX_PATH}': {e}")
+            st.error(f"Error loading GBP/IE Prices from '{PRICE_MATRIX_GBP_EI_XLSX_PATH}': {e}")
             files_loaded_successfully = False # Set to false if this crucial file fails
     else:
-        st.error(f"Price Matrix GBP/IE file not found: {PRICE_MATRIX_GBP_IE_XLSX_PATH}")
+        st.error(f"Price Matrix GBP/IE file not found: {PRICE_MATRIX_GBP_EI_XLSX_PATH}")
         files_loaded_successfully = False
 
 # Load Masterdata Template
@@ -161,13 +161,13 @@ if files_loaded_successfully:
     st.header("Step 1: Select currency")
     
     europe_currencies = []
-    gbp_ie_currencies = []
+    gbp_ei_currencies = []
     
     # Define which currencies belong to which price file
     # These are the currencies expected in price-matrix_EUROPE.xlsx
     EXPECTED_EUROPE_CURRENCIES = ['DACH - EURO', 'DKK', 'EURO', 'NOK', 'PLN', 'SEK', 'AUD']
     # These are the currencies expected in price-matrix_GBP-IE.xlsx
-    EXPECTED_GBP_IE_CURRENCIES = ['GBP', 'IE - EUR']
+    EXPECTED_GBP_EI_CURRENCIES = ['GBP', 'IE - EUR']
 
     try:
         # Get EUROPE currencies from the loaded dataframe
@@ -177,13 +177,13 @@ if files_loaded_successfully:
             europe_currencies = [col for col in st.session_state.wholesale_prices_df.columns if col in EXPECTED_EUROPE_CURRENCIES and str(col).lower() != str(article_no_col_name_ws_eu).lower()]
         
         # Get GBP/IE currencies from the loaded dataframe
-        if st.session_state.wholesale_prices_gbp_ie_df is not None and not st.session_state.wholesale_prices_gbp_ie_df.empty:
-            article_no_col_name_ws_gbp = st.session_state.wholesale_prices_gbp_ie_df.columns[0] # Assumes first col is Article No.
+        if st.session_state.wholesale_prices_gbp_ei_df is not None and not st.session_state.wholesale_prices_gbp_ei_df.empty:
+            article_no_col_name_ws_gbp = st.session_state.wholesale_prices_gbp_ei_df.columns[0] # Assumes first col is Article No.
             # Filter to only include expected GBP/IE currencies that are actually in the file
-            gbp_ie_currencies = [col for col in st.session_state.wholesale_prices_gbp_ie_df.columns if col in EXPECTED_GBP_IE_CURRENCIES and str(col).lower() != str(article_no_col_name_ws_gbp).lower()]
+            gbp_ei_currencies = [col for col in st.session_state.wholesale_prices_gbp_ei_df.columns if col in EXPECTED_GBP_EI_CURRENCIES and str(col).lower() != str(article_no_col_name_ws_gbp).lower()]
 
         # Combine and sort all available currency options
-        currency_options = [DEFAULT_NO_SELECTION] + sorted(list(set(europe_currencies + gbp_ie_currencies))) # Use set to avoid duplicates if a currency accidentally appears in both lists
+        currency_options = [DEFAULT_NO_SELECTION] + sorted(list(set(europe_currencies + gbp_ei_currencies))) # Use set to avoid duplicates if a currency accidentally appears in both lists
         
         # Determine the index for the selectbox
         current_currency_idx = 0
@@ -220,7 +220,7 @@ if files_loaded_successfully:
             current_currency = st.session_state.selected_currency_session
             temp_df = st.session_state.raw_df.copy() # Work with a copy
 
-            if current_currency in EXPECTED_GBP_IE_CURRENCIES:
+            if current_currency in EXPECTED_GBP_EI_CURRENCIES:
                 # For GBP or IE - EUR, exclude products with 'EU' in Market column
                 st.session_state.filtered_raw_df = temp_df[temp_df['Market'] != 'EU']
             elif current_currency in EXPECTED_EUROPE_CURRENCIES:
@@ -550,9 +550,9 @@ if files_loaded_successfully:
 
         # Determine which price dataframes to use based on the selected currency
         # These are the same lists used in Step 1 for currency population
-        if current_selected_currency_for_dl in EXPECTED_GBP_IE_CURRENCIES:
-            wholesale_prices_to_use = st.session_state.wholesale_prices_gbp_ie_df
-            retail_prices_to_use = st.session_state.retail_prices_gbp_ie_df
+        if current_selected_currency_for_dl in EXPECTED_GBP_EI_CURRENCIES:
+            wholesale_prices_to_use = st.session_state.wholesale_prices_gbp_ei_df
+            retail_prices_to_use = st.session_state.retail_prices_gbp_ei_df
             if wholesale_prices_to_use is None or retail_prices_to_use is None:
                 st.error(f"GBP/IE price matrix is not loaded. Cannot generate file for {current_selected_currency_for_dl}.")
                 return None
