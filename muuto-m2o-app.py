@@ -14,7 +14,7 @@ st.set_page_config(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RAW_DATA_XLSX_PATH = os.path.join(BASE_DIR, "raw-data.xlsx")
 PRICE_MATRIX_EUROPE_XLSX_PATH = os.path.join(BASE_DIR, "price-matrix_EUROPE.xlsx")
-PRICE_MATRIX_GBP_EI_XLSX_PATH = os.path.join(BASE_DIR, "price-matrix_GBP-EE.xlsx") # New file path
+PRICE_MATRIX_GBP_EI_XLSX_PATH = os.path.join(BASE_DIR, "price-matrix_GBP-EI.xlsx") # New file path
 MASTERDATA_TEMPLATE_XLSX_PATH = os.path.join(BASE_DIR, "Masterdata-output-template.xlsx")
 LOGO_PATH = os.path.join(BASE_DIR, "muuto_logo.png")
 
