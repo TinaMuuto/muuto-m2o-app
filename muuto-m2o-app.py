@@ -53,7 +53,6 @@ with top_col2:
 
 # --- App Introduction ---
 st.markdown("""
- 
 Select your preferred M2O sofa combinations — and instantly generate all the data you need.
  
 Here’s how it works:
