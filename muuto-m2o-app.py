@@ -454,7 +454,7 @@ if files_loaded_successfully:
                 else:
                     st.markdown("<small>Apply specific base color to all applicable products in this family:</small>", unsafe_allow_html=True)
                     
-                    # Always use 1 column for family-level base color checkboxes to ensure labels fit
+                    # Display family-level base color checkboxes in a single column
                     for base_color_option in sorted_unique_bases_for_family_group:
                         family_base_cb_key = f"fam_base_all_{family_name_for_base}_{base_color_option}".replace(" ","_").replace("/","_").replace("(","").replace(")","")
                         
@@ -475,8 +475,9 @@ if files_loaded_successfully:
                                         value=is_this_base_selected_for_all_applicable_in_fam, 
                                         key=family_base_cb_key,
                                         on_change=handle_family_base_color_select_all_toggle,
-                                        args=(family_name_for_base, base_color_option, items_in_this_family_for_base, family_base_cb_key), 
-                                        help=f"Apply/Remove '{base_color_option}' for all applicable products in {family_name_for_base}.")
+                                        args=(family_name_for_base, base_color_option, items_in_this_family_for_base, family_base_cb_key)
+                                        # Tooltip removed: help=f"Apply/Remove '{base_color_option}' for all applicable products in {family_name_for_base}."
+                                        )
                     st.markdown("---") 
 
                 for generic_item in items_in_this_family_for_base: 
@@ -657,8 +658,8 @@ st.markdown("""
         padding-right: 5px; 
         font-weight:bold;
         display: flex; 
-        align-items: center; 
-        height: 100%; 
+        align-items: center; /* Vertically center the text */
+        height: 100%; /* Ensure it takes full cell height for alignment */
     }
     .checkbox-placeholder { width: 20px; height: 20px; margin: auto; }
 
