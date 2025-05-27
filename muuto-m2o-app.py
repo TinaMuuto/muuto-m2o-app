@@ -429,7 +429,6 @@ if files_loaded_successfully:
     if items_needing_base_choice_now:
         st.subheader("Step 2a: Specify base colors")
 
-        # Group items by product family
         items_by_family_for_base_step = {}
         for item_data in items_needing_base_choice_now:
             family_name = item_data['family']
@@ -454,7 +453,6 @@ if files_loaded_successfully:
                 else:
                     st.markdown("<small>Apply specific base color to all applicable products in this family:</small>", unsafe_allow_html=True)
                     
-                    # Display family-level base color checkboxes in a single column
                     for base_color_option in sorted_unique_bases_for_family_group:
                         family_base_cb_key = f"fam_base_all_{family_name_for_base}_{base_color_option}".replace(" ","_").replace("/","_").replace("(","").replace(")","")
                         
@@ -593,7 +591,19 @@ if files_loaded_successfully:
             item_data_df = st.session_state.raw_df[st.session_state.raw_df['Item No'] == item_no]
             if not item_data_df.empty:
                 item_series = item_data_df.iloc[0]
-                row_dict = {col: item_series.get(col) for col in final_output_cols if col not in [ws_price_col_dyn, rt_price_col_dyn]}
+                row_dict = {}
+                for col_template_output in final_output_cols:
+                    if col_template_output == ws_price_col_dyn or col_template_output == rt_price_col_dyn:
+                        continue 
+                    
+                    value_to_assign = None 
+                    if col_template_output in item_series.index: 
+                        value_to_assign = item_series[col_template_output]
+                        
+                        if col_template_output == "Product" and isinstance(value_to_assign, str) and value_to_assign.endswith(" - All Colors"):
+                            value_to_assign = value_to_assign[:-len(" - All Colors")]
+                    
+                    row_dict[col_template_output] = value_to_assign
                 
                 if not ws_prices.empty:
                     article_col_ws = ws_prices.columns[0]
@@ -657,8 +667,8 @@ st.markdown("""
         padding-right: 5px; 
         font-weight:bold;
         display: flex; 
-        align-items: center; /* Vertically center the text */
-        height: 100%; /* Ensure it takes full cell height for alignment */
+        align-items: center; 
+        height: 100%; 
     }
     .checkbox-placeholder { width: 20px; height: 20px; margin: auto; }
 
@@ -673,24 +683,22 @@ st.markdown("""
 
     /* Checkbox Styling - Revised for proper label display */
     div[data-testid="stCheckbox"] { /* The main wrapper for st.checkbox widget */
-        width: auto !important; /* Allow widget to take necessary width */
-        min-height: 28px; /* Ensure consistent height, can be adjusted */
-        display: flex; /* Added to help with internal alignment if needed */
-        align-items: center; /* Added to help with internal alignment if needed */
+        width: auto !important; 
+        min-height: 28px; 
+        display: flex; 
+        align-items: center; 
     }
 
-    /* The label element that wraps the visual box AND the text */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] {
-        display: flex !important; /* Align visual box and text container horizontally */
-        align-items: center !important; /* Vertical alignment */
-        width: auto !important; /* Allow label to expand with text */
-        height: auto !important; /* Allow label to expand with text */
+        display: flex !important; 
+        align-items: center !important; 
+        width: auto !important; 
+        height: auto !important; 
         padding: 0 !important; 
         margin: 0 !important; 
         cursor: pointer; 
     }
 
-    /* Visual box of the checkbox */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child { 
         background-color: #FFFFFF !important; 
         border: 1px solid #5B4A14 !important; 
@@ -700,42 +708,38 @@ st.markdown("""
         min-width: 20px !important; 
         min-height: 20px !important;
         border-radius: 0.25rem !important;
-        margin-right: 0.5rem !important; /* Space between box and label text */
+        margin-right: 0.5rem !important; 
         padding: 0 !important;
         box-sizing: border-box !important;
         display: flex !important; 
         align-items: center !important;
         justify-content: center !important;
-        flex-shrink: 0; /* Prevent the visual box from shrinking */
+        flex-shrink: 0; 
     }
 
-    /* Checkmark SVG - UNCHECKED STATE */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] > span:first-child svg {
         fill: #FFFFFF !important; 
         width: 12px !important; 
         height: 12px !important;
     }
 
-    /* Visual box of the checkbox - CHECKED STATE */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child {
         background-color: #5B4A14 !important; 
         border-color: #5B4A14 !important; 
     }
-    /* Checkmark SVG - CHECKED STATE */
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"]:has(input[type="checkbox"][aria-checked="true"]) > span:first-child svg {
         fill: #FFFFFF !important; 
     }
 
-    /* Styling for the actual label text container */
     div[data-testid="stCheckbox"] div[data-testid="stWidgetLabel"] {
-        white-space: nowrap !important; /* Prevent text from wrapping */
+        white-space: nowrap !important; 
         padding-left: 0 !important; 
         display: flex;
         align-items: center;
     }
     div[data-testid="stCheckbox"] div[data-testid="stWidgetLabel"] p {
          margin-bottom: 0 !important; 
-         line-height: 1.2 !important; /* Adjust line-height if needed */
+         line-height: 1.2 !important; 
     }
 
 
