@@ -92,7 +92,7 @@ if st.session_state.raw_df is None:
     if os.path.exists(RAW_DATA_XLSX_PATH):
         try:
             st.session_state.raw_df = pd.read_excel(RAW_DATA_XLSX_PATH, sheet_name=RAW_DATA_APP_SHEET)
-            required_cols = ['Product Type', 'Product Model', 'Sofa Direction', 'Base Color', 'Product Family', 'Item No', 'Article No', 'Image URL swatch', 'Upholstery Type', 'Upholstery Color', 'Market']
+            required_cols = ['Product Type', 'Product Model', 'Sofa Direction', 'Base Color', 'Product Family', 'Item No', 'Article No', 'Image URL swatch', 'Upholstery Type', 'Upholstery Color', 'Market', 'Item Name'] # Added 'Item Name'
             missing = [col for col in required_cols if col not in st.session_state.raw_df.columns]
             if missing:
                 st.error(f"Required columns missing in '{os.path.basename(RAW_DATA_XLSX_PATH)}': {', '.join(missing)}.")
@@ -595,29 +595,21 @@ if files_loaded_successfully:
                 
                 for template_col_name in final_output_cols:
                     if template_col_name == ws_price_col_dyn or template_col_name == rt_price_col_dyn:
-                        output_row_dict[template_col_name] = None # Placeholder for price columns
+                        output_row_dict[template_col_name] = None 
                         continue 
                     
-                    current_value_for_cell = None
-                    is_product_output_column = (template_col_name.strip().lower() == "product")
-
-                    if is_product_output_column:
-                        if "Product Display Name" in item_series.index:
-                            current_value_for_cell = item_series["Product Display Name"]
-                    elif template_col_name in item_series.index:
-                        current_value_for_cell = item_series[template_col_name]
-                    
-                    if is_product_output_column and isinstance(current_value_for_cell, str):
-                        processed_value = current_value_for_cell.strip() 
-                        suffix_to_remove = " - All Colors"
-                        if processed_value.endswith(suffix_to_remove):
-                            current_value_for_cell = processed_value[:-len(suffix_to_remove)]
+                    value_to_assign = None
+                    if template_col_name.strip().lower() == "product":
+                        if "Item Name" in item_series.index:
+                            value_to_assign = item_series["Item Name"]
                         else:
-                            current_value_for_cell = processed_value 
+                            st.warning("Kolonnen 'Item Name' blev ikke fundet i rådata. 'Product'-kolonnen i output kan være tom.")
+                            value_to_assign = item_series.get("Product Display Name", None) # Fallback to Product Display Name if Item Name is missing
+                    elif template_col_name in item_series.index:
+                        value_to_assign = item_series[template_col_name]
                     
-                    output_row_dict[template_col_name] = current_value_for_cell
+                    output_row_dict[template_col_name] = value_to_assign
                 
-                # Populate price columns
                 if not ws_prices.empty:
                     article_col_ws = ws_prices.columns[0]
                     price_df = ws_prices[ws_prices[article_col_ws].astype(str) == str(article_no)]
@@ -629,7 +621,6 @@ if files_loaded_successfully:
                     price_df = rt_prices[rt_prices[article_col_rt].astype(str) == str(article_no)]
                     output_row_dict[rt_price_col_dyn] = price_df.iloc[0][current_selected_currency_for_dl] if not price_df.empty and current_selected_currency_for_dl in price_df.columns and pd.notna(price_df.iloc[0][current_selected_currency_for_dl]) else "Price Not Found"
                 else: output_row_dict[rt_price_col_dyn] = "Retail Matrix Empty"
-                
                 output_data.append(output_row_dict)
             else: st.warning(f"Item No {item_no} not found. Skipping.")
 
@@ -696,11 +687,11 @@ st.markdown("""
     div[data-testid="stHorizontalBlock"] > div[data-testid="stVerticalBlock"] > div[data-testid="stMarkdown"] > div[data-testid="stMarkdownContainer"] { display: flex !important; align-items: center !important; justify-content: center !important; width: 100%; height: 100%; box-sizing: border-box; }
 
     /* Checkbox Styling - Revised for proper label display */
-    div[data-testid="stCheckbox"] { /* The main wrapper for st.checkbox widget */
-        width: auto !important; /* Allow widget to take necessary width */
-        min-height: 28px; /* Ensure consistent height, can be adjusted */
-        display: flex; /* Added to help with internal alignment if needed */
-        align-items: center; /* Added to help with internal alignment if needed */
+    div[data-testid="stCheckbox"] { 
+        width: auto !important; 
+        min-height: 28px; 
+        display: flex; 
+        align-items: center; 
     }
 
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] {
@@ -745,18 +736,15 @@ st.markdown("""
         fill: #FFFFFF !important; 
     }
 
-    /* Styling for the actual label text container of st.checkbox */
-    /* This targets the div that holds the <p> tag for the label */
     div[data-testid="stCheckbox"] div[data-testid="stWidgetLabel"] {
-        white-space: nowrap !important; /* Prevent text from wrapping */
-        padding-left: 0 !important; /* Remove default padding that might cause issues */
+        white-space: nowrap !important; 
+        padding-left: 0 !important; 
         display: flex;
         align-items: center;
     }
-    /* Ensure the paragraph within the label doesn't add extra margins causing misalignment */
     div[data-testid="stCheckbox"] div[data-testid="stWidgetLabel"] p {
          margin-bottom: 0 !important; 
-         line-height: 1.2 !important; /* Adjust line-height if needed for vertical centering */
+         line-height: 1.2 !important; 
     }
 
 
