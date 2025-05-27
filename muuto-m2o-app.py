@@ -591,32 +591,46 @@ if files_loaded_successfully:
             item_data_df = st.session_state.raw_df[st.session_state.raw_df['Item No'] == item_no]
             if not item_data_df.empty:
                 item_series = item_data_df.iloc[0]
-                row_dict = {}
-                for col_template_output in final_output_cols:
-                    if col_template_output == ws_price_col_dyn or col_template_output == rt_price_col_dyn:
+                output_row_dict = {}
+                
+                for template_col_name in final_output_cols:
+                    if template_col_name == ws_price_col_dyn or template_col_name == rt_price_col_dyn:
+                        output_row_dict[template_col_name] = None # Placeholder for price columns
                         continue 
                     
-                    value_to_assign = None 
-                    if col_template_output in item_series.index: 
-                        value_to_assign = item_series[col_template_output]
-                        
-                        if col_template_output == "Product" and isinstance(value_to_assign, str) and value_to_assign.endswith(" - All Colors"):
-                            value_to_assign = value_to_assign[:-len(" - All Colors")]
+                    current_value_for_cell = None
+                    is_product_output_column = (template_col_name.strip().lower() == "product")
+
+                    if is_product_output_column:
+                        if "Product Display Name" in item_series.index:
+                            current_value_for_cell = item_series["Product Display Name"]
+                    elif template_col_name in item_series.index:
+                        current_value_for_cell = item_series[template_col_name]
                     
-                    row_dict[col_template_output] = value_to_assign
+                    if is_product_output_column and isinstance(current_value_for_cell, str):
+                        processed_value = current_value_for_cell.strip() 
+                        suffix_to_remove = " - All Colors"
+                        if processed_value.endswith(suffix_to_remove):
+                            current_value_for_cell = processed_value[:-len(suffix_to_remove)]
+                        else:
+                            current_value_for_cell = processed_value 
+                    
+                    output_row_dict[template_col_name] = current_value_for_cell
                 
+                # Populate price columns
                 if not ws_prices.empty:
                     article_col_ws = ws_prices.columns[0]
                     price_df = ws_prices[ws_prices[article_col_ws].astype(str) == str(article_no)]
-                    row_dict[ws_price_col_dyn] = price_df.iloc[0][current_selected_currency_for_dl] if not price_df.empty and current_selected_currency_for_dl in price_df.columns and pd.notna(price_df.iloc[0][current_selected_currency_for_dl]) else "Price Not Found"
-                else: row_dict[ws_price_col_dyn] = "Wholesale Matrix Empty"
+                    output_row_dict[ws_price_col_dyn] = price_df.iloc[0][current_selected_currency_for_dl] if not price_df.empty and current_selected_currency_for_dl in price_df.columns and pd.notna(price_df.iloc[0][current_selected_currency_for_dl]) else "Price Not Found"
+                else: output_row_dict[ws_price_col_dyn] = "Wholesale Matrix Empty"
                 
                 if not rt_prices.empty:
                     article_col_rt = rt_prices.columns[0]
                     price_df = rt_prices[rt_prices[article_col_rt].astype(str) == str(article_no)]
-                    row_dict[rt_price_col_dyn] = price_df.iloc[0][current_selected_currency_for_dl] if not price_df.empty and current_selected_currency_for_dl in price_df.columns and pd.notna(price_df.iloc[0][current_selected_currency_for_dl]) else "Price Not Found"
-                else: row_dict[rt_price_col_dyn] = "Retail Matrix Empty"
-                output_data.append(row_dict)
+                    output_row_dict[rt_price_col_dyn] = price_df.iloc[0][current_selected_currency_for_dl] if not price_df.empty and current_selected_currency_for_dl in price_df.columns and pd.notna(price_df.iloc[0][current_selected_currency_for_dl]) else "Price Not Found"
+                else: output_row_dict[rt_price_col_dyn] = "Retail Matrix Empty"
+                
+                output_data.append(output_row_dict)
             else: st.warning(f"Item No {item_no} not found. Skipping.")
 
         if not output_data: st.info("No data to output."); return None
@@ -683,10 +697,10 @@ st.markdown("""
 
     /* Checkbox Styling - Revised for proper label display */
     div[data-testid="stCheckbox"] { /* The main wrapper for st.checkbox widget */
-        width: auto !important; 
-        min-height: 28px; 
-        display: flex; 
-        align-items: center; 
+        width: auto !important; /* Allow widget to take necessary width */
+        min-height: 28px; /* Ensure consistent height, can be adjusted */
+        display: flex; /* Added to help with internal alignment if needed */
+        align-items: center; /* Added to help with internal alignment if needed */
     }
 
     div[data-testid="stCheckbox"] > label[data-baseweb="checkbox"] {
@@ -731,15 +745,18 @@ st.markdown("""
         fill: #FFFFFF !important; 
     }
 
+    /* Styling for the actual label text container of st.checkbox */
+    /* This targets the div that holds the <p> tag for the label */
     div[data-testid="stCheckbox"] div[data-testid="stWidgetLabel"] {
-        white-space: nowrap !important; 
-        padding-left: 0 !important; 
+        white-space: nowrap !important; /* Prevent text from wrapping */
+        padding-left: 0 !important; /* Remove default padding that might cause issues */
         display: flex;
         align-items: center;
     }
+    /* Ensure the paragraph within the label doesn't add extra margins causing misalignment */
     div[data-testid="stCheckbox"] div[data-testid="stWidgetLabel"] p {
          margin-bottom: 0 !important; 
-         line-height: 1.2 !important; 
+         line-height: 1.2 !important; /* Adjust line-height if needed for vertical centering */
     }
 
 
